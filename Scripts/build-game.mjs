@@ -5,7 +5,7 @@ let html=await read('match.html'),css=await read('match.css');
 const art=await readFile(new URL('assets/match-keyart.png',gameRoot));
 css=css.replace("url('assets/match-keyart.png')",()=>`url('data:image/png;base64,${art.toString('base64')}')`);
 let mayaModule=await read('maya-art.mjs');
-for(const name of ['maya-ready-v1.png','maya-follow-v1.png']){
+for(const name of ['maya-ready-v1.png','maya-follow-v1.png','cast-coral-v1.png','cast-mixed-v2.png','cast-navy-v1.png','pitchers-v1.png','park-backdrop-v1.png']){
   const data=await readFile(new URL(`assets/${name}`,gameRoot));
   mayaModule=mayaModule.replace(`'assets/${name}'`,()=>JSON.stringify(`data:image/png;base64,${data.toString('base64')}`));
 }
