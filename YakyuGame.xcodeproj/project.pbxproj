@@ -1,0 +1,47 @@
+// !$*UTF8*$!
+{
+  archiveVersion = 1;
+  classes = {};
+  objectVersion = 56;
+  objects = {
+    100000000000000000000001 = {isa = PBXBuildFile; fileRef = 100000000000000000000011; };
+    100000000000000000000002 = {isa = PBXBuildFile; fileRef = 100000000000000000000012; };
+    100000000000000000000003 = {isa = PBXBuildFile; fileRef = 100000000000000000000013; };
+    100000000000000000000004 = {isa = PBXBuildFile; fileRef = 100000000000000000000014; };
+    100000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameApp.swift; sourceTree = "<group>"; };
+    100000000000000000000012 = {isa = PBXFileReference; lastKnownFileType = folder; path = Web; sourceTree = "<group>"; };
+    100000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+    100000000000000000000014 = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+    100000000000000000000015 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+    100000000000000000000016 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YakyuGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+    100000000000000000000020 = {isa = PBXGroup; children = (100000000000000000000021,100000000000000000000022); sourceTree = "<group>"; };
+    100000000000000000000021 = {isa = PBXGroup; children = (100000000000000000000011,100000000000000000000012,100000000000000000000013,100000000000000000000014,100000000000000000000015); path = App; sourceTree = "<group>"; };
+    100000000000000000000022 = {isa = PBXGroup; children = (100000000000000000000016); name = Products; sourceTree = "<group>"; };
+    100000000000000000000030 = {
+      isa = PBXNativeTarget;
+      buildConfigurationList = 100000000000000000000042;
+      buildPhases = (100000000000000000000031,100000000000000000000032,100000000000000000000033);
+      buildRules = (); dependencies = (); name = YakyuGame; productName = YakyuGame;
+      productReference = 100000000000000000000016;
+      productType = "com.apple.product-type.application";
+    };
+    100000000000000000000031 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001); runOnlyForDeploymentPostprocessing = 0; };
+    100000000000000000000032 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+    100000000000000000000033 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000002,100000000000000000000003,100000000000000000000004); runOnlyForDeploymentPostprocessing = 0; };
+    100000000000000000000040 = {
+      isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 1600;};
+      buildConfigurationList = 100000000000000000000041;
+      compatibilityVersion = "Xcode 14.0"; developmentRegion = en; hasScannedForEncodings = 0;
+      knownRegions = (en,Base); mainGroup = 100000000000000000000020;
+      productRefGroup = 100000000000000000000022; projectDirPath = ""; projectRoot = "";
+      targets = (100000000000000000000030);
+    };
+    100000000000000000000041 = {isa = XCConfigurationList; buildConfigurations = (100000000000000000000051,100000000000000000000052); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+    100000000000000000000042 = {isa = XCConfigurationList; buildConfigurations = (100000000000000000000053,100000000000000000000054); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+    100000000000000000000051 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; DEBUG_INFORMATION_FORMAT = dwarf; GCC_OPTIMIZATION_LEVEL = 0; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;};};
+    100000000000000000000052 = {isa = XCBuildConfiguration; name = Release; buildSettings = {CLANG_ENABLE_MODULES = YES; CLANG_ENABLE_OBJC_ARC = YES; SDKROOT = iphoneos; IPHONEOS_DEPLOYMENT_TARGET = 17.0; DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym"; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; VALIDATE_PRODUCT = YES;};};
+    100000000000000000000053 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = App/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)","@executable_path/Frameworks"); MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = com.yakyugame.app; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;};};
+    100000000000000000000054 = {isa = XCBuildConfiguration; name = Release; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = App/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; LD_RUNPATH_SEARCH_PATHS = ("$(inherited)","@executable_path/Frameworks"); MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = com.yakyugame.app; PRODUCT_NAME = "$(TARGET_NAME)"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = 1;};};
+  };
+  rootObject = 100000000000000000000040;
+}
