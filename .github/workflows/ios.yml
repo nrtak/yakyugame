@@ -1,0 +1,29 @@
+name: iOS build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Test game
+        run: node --test Game/engine.test.mjs Game/match-engine.test.mjs Game/match-flow.test.mjs Game/match-render.test.mjs
+      - name: Bundle offline game
+        run: node Scripts/build-game.mjs
+      - name: Build iPhone simulator app
+        run: |
+          xcodebuild -version
+          xcodebuild -project YakyuGame.xcodeproj -scheme YakyuGame -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - uses: actions/upload-artifact@v6
+        with:
+          name: YakyuGame-simulator
+          path: build/Build/Products/Debug-iphonesimulator/YakyuGame.app
+          if-no-files-found: error
