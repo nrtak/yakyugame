@@ -111,7 +111,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          xcodebuild -project YakyuGame.xcodeproj -scheme YakyuGame -configuration Release -destination 'generic/platform=iOS' -archivePath build/YakyuGame.xcarchive DEVELOPMENT_TEAM=R3233N87DC CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='Apple Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" archive
+          xcodebuild -project YakyuGame.xcodeproj -scheme YakyuGame -configuration Release -destination 'generic/platform=iOS' -archivePath build/YakyuGame.xcarchive DEVELOPMENT_TEAM=R3233N87DC CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY='iPhone Distribution' PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" archive
           xcodebuild -exportArchive -archivePath build/YakyuGame.xcarchive -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath build/export
       - name: Validate and upload to App Store Connect
         shell: bash
