@@ -5,4 +5,13 @@
 
 .intro-links{display:flex;align-items:center;justify-content:center;gap:12px}.intro-links .text-button{margin:0}
 
+@media(orientation:landscape) and (max-height:550px){
+  body{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right));padding-bottom:env(safe-area-inset-bottom)}
+  .pitch-options button,.header-actions button,.footer-actions button{min-height:44px}
+  .action{width:88px;min-height:88px}
+  .release-wrap{bottom:16%}
+  .stadium{height:calc(100svh - 112px - env(safe-area-inset-bottom))}
+  .play-status span{max-width:38vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+
 

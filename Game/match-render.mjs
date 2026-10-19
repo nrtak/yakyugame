@@ -1,13 +1,18 @@
 import { TEAMS, playerById, currentBatter, currentPitcher } from './match-engine.mjs';
-import { MAYA_ART } from './maya-art.mjs';
+import { MAYA_ART, CAST_SHEETS, castFrame } from './maya-art.mjs';
 
 export const VIEW_W=1280,VIEW_H=720;
 export const getZone=defense=>defense?{x:737,y:307,sx:49,sy:61}:{x:725,y:430,sx:77,sy:95};
 export function createRenderer(canvas){
   const c=canvas.getContext('2d');
+  let visibleLeft=0,visibleWidth=1280;
   const mayaImages={};
   if(typeof Image==='function')for(const [key,asset] of Object.entries(MAYA_ART)){
     const image=new Image();image.decoding='async';image.src=asset.src;mayaImages[key]=image;
+  }
+  const castImages={};
+  if(typeof Image==='function')for(const [key,src] of Object.entries(CAST_SHEETS)){
+    const image=new Image();image.decoding='async';image.src=src;castImages[key]=image;
   }
   const oval=(x,y,rx,ry,color)=>{c.beginPath();c.ellipse(x,y,Math.max(.1,rx),Math.max(.1,ry),0,0,Math.PI*2);c.fillStyle=color;c.fill();};
   const path=(points,color,width=2)=>{c.beginPath();points.forEach((p,i)=>i?c.lineTo(...p):c.moveTo(...p));c.strokeStyle=color;c.lineWidth=width;c.lineCap='round';c.lineJoin='round';c.stroke();};
@@ -16,6 +21,41 @@ export function createRenderer(canvas){
   const poly=(points,color)=>{c.beginPath();points.forEach((p,i)=>i?c.lineTo(...p):c.moveTo(...p));c.closePath();c.fillStyle=color;c.fill();};
 
   function character(x,y,s,teamId,p,role='field',pose=0,time=0){
+    const frame=castFrame(p.id,role,pose),atlas=frame&&castImages[frame.sheet];
+    if(role==='run'&&atlas?.complete&&atlas.naturalWidth>0){
+      const head=castFrame(p.id,'bat',0),image=castImages[head.sheet],team=TEAMS[teamId];
+      const stride=Math.sin(time*17)*10;
+      c.save();c.translate(x,y);c.scale(s,s);
+      oval(0,3,27,6,'#173b3e30');
+      path([[-10,-47],[-19+stride,-10]],'#fff7ed',15);path([[10,-47],[18-stride,-10]],'#fff7ed',15);
+      path([[-19+stride,-20],[-19+stride,-6]],team.color,11);path([[18-stride,-20],[18-stride,-6]],team.color,11);
+      box(-30+stride,-8,25,10,4,team.color);box(7-stride,-8,25,10,4,team.color);
+      box(-22,-104,44,57,9,teamId===0?'#fff4e8':team.color);
+      path([[-19,-94],[-29-stride,-69]],team.color,13);path([[19,-94],[30+stride,-76]],team.color,13);
+      path([[-29-stride,-72],[-18-stride,-58]],p.skin,9);path([[30+stride,-78],[19+stride,-93]],p.skin,9);
+      path([[-18,-48],[18,-48]],'#3a4247',4);label(p.captain?'C':String(p.number),6,-69,13,teamId===0?team.color:team.trim);
+      const [hx,hy,hw,hh]=head.rect,headHeight=58,headWidth=headHeight*(hw*.49)/(hh*.33);
+      c.drawImage(image,hx+hw*.32,hy+hh*.12,hw*.49,hh*.33,-headWidth/2,-156,headWidth,headHeight);
+      c.restore();return;
+    }
+    if(role!=='run'&&atlas?.complete&&atlas.naturalWidth>0){
+      const [sx,sy,sw,sh]=frame.rect,height=frame.height*s,width=height*sw/sh;
+      const left=x-width*frame.anchorX,top=y-height*frame.anchorY;
+      oval(x,y+4,30*s,7*s,'#173b3e30');c.save();
+      c.beginPath();
+      // Packed poses have different silhouettes; keep adjacent helmets and cleats outside each frame.
+      const edge=frame.clipRight??1;
+      const clip=frame.kind==='field'?[[.28,0],[.76,0],[.76,.12],[1,.23],[1,1],[0,1],[0,.23],[.28,.12]]:
+        frame.row===1&&frame.sheet==='navy'?[[0,0],[1,0],[1,.56],[edge,.56],[edge,1],[.75*edge,1],[.75*edge,.89],[.28*edge,.89],[.28*edge,1],[0,1]]:
+        frame.row===1?[[0,0],[1,0],[1,.56],[edge,.56],[edge,1],[0,1]]:
+        frame.sheet==='navy'&&frame.kind==='bat'?[[0,0],[1,0],[1,1],[.79,1],[.79,.96],[.28,.96],[.28,1],[0,1]]:
+        frame.kind==='pitch'&&frame.index===2?[[0,0],[1,0],[1,.44],[.76,.44],[.76,1],[0,1]]:
+        frame.kind==='pitch'&&frame.index===3?[[.43,0],[1,0],[1,1],[0,1],[0,.43],[.43,.43]]:
+        [[0,0],[1,0],[1,1],[0,1]];
+      clip.forEach(([a,b],i)=>i?c.lineTo(left+a*width,top+b*height):c.moveTo(left+a*width,top+b*height));
+      c.closePath();c.clip();
+      c.drawImage(atlas,sx,sy,sw,sh,left,top,width,height);c.restore();return;
+    }
     if(p.id==='c1'&&role==='bat'){
       const key=pose>.28?'follow':'ready',image=mayaImages[key],asset=MAYA_ART[key];
       if(image?.complete&&image.naturalWidth>0){
@@ -79,6 +119,12 @@ export function createRenderer(canvas){
     c.restore();
   }
 
+  function pitchingPose(v){
+    if(v.phase==='windup')return v.clock<.18?0:1;
+    if(v.phase==='flight')return v.elapsed<.16?2:3;
+    return 0;
+  }
+
   function backdrop(){
     const sky=c.createLinearGradient(0,0,0,270);sky.addColorStop(0,'#8ec9df');sky.addColorStop(1,'#d7ebed');c.fillStyle=sky;c.fillRect(-1800,0,4880,720);
     for(const [x,y] of [[190,78],[470,50],[1080,100]]){oval(x,y,65,15,'#ffffff99');oval(x+26,y-10,32,19,'#ffffff99');}
@@ -89,6 +135,8 @@ export function createRenderer(canvas){
     c.fillStyle='#317561';c.fillRect(-1800,228,4880,50);c.fillStyle='#d1dbbb';c.fillRect(-1800,225,4880,5);
     for(let i=-30;i<50;i++)path([[i*70,231],[i*70,278]],'#a0c59f44',1);
     c.fillStyle='#79ac60';c.fillRect(-1800,278,4880,442);
+    const park=castImages.park;
+    if(park?.complete&&park.naturalWidth>0)c.drawImage(park,visibleLeft,0,visibleWidth,278);
     for(let i=-8;i<17;i++)poly([[640,250],[i*180-500,720],[i*180-415,720]],'#ffffff07');
     box(961,157,201,99,4,'#244f4e');label('RIVERSIDE PARK',1061,180,14,'#e8efd4');label('CORAL  •  NAVY',1061,209,13,'#fff6dd');label('PLAY TOGETHER',1061,235,10,'#a8c9bb');
   }
@@ -106,7 +154,7 @@ export function createRenderer(canvas){
     // Visible baserunners are members of the current batting lineup, in helmets.
     const baseSpots=[[965,438],[643,295],[350,439]];
     m.bases.forEach((id,i)=>{if(id)character(baseSpots[i][0]+17,baseSpots[i][1]-5,.52,m.half,playerById(id),'run',0,0);});
-    character(653,349,.77,fieldTeam,currentPitcher(m),'pitch',phase==='windup'?Math.sin(clock*4)*.7:phase==='flight'?Math.max(0,1-v.elapsed*4):0);
+    character(653,349,.77,fieldTeam,currentPitcher(m),'pitch',pitchingPose(v));
     const swingPose=v.swing?Math.max(0,Math.min(1,(v.elapsed-v.swing.inputTime)/.19)):0;
     character(480,687,1.68,m.half,currentBatter(m),'bat',swingPose);
   }
@@ -119,7 +167,7 @@ export function createRenderer(canvas){
     oval(736,349,87,25,'#cda171');poly([[726,340],[745,340],[748,348],[736,355],[724,348]],'#fff5dc');
     character(738,375,.56,0,TEAMS[0].players.find(p=>p.position==='C'),'field');
     character(672,354,.74,1,currentBatter(m),'bat',v.phase==='flight'&&v.cpuSwing&&v.elapsed>v.pitch.duration-.08?.8:0);
-    character(550,683,1.68,0,currentPitcher(m),'pitch',v.phase==='windup'?Math.sin(v.clock*4)*.8:v.phase==='flight'?Math.max(0,1-v.elapsed*3):0);
+    character(550,683,1.68,0,currentPitcher(m),'pitch',pitchingPose(v));
   }
 
   function target(v){
@@ -136,8 +184,8 @@ export function createRenderer(canvas){
   function pitchBall(v){
     const p=v.pitch,z=getZone(v.match.half===1),d=Math.max(0,Math.min(1.18,v.elapsed/p.duration)),depth=d*d;
     let x,y,r;
-    if(v.match.half===0){x=675+(z.x+p.x*z.sx-675)*depth+Math.sin(Math.min(1,d)*Math.PI)*p.bend*62;y=259+(z.y-p.y*z.sy-259)*depth-Math.sin(Math.min(1,d)*Math.PI)*37;r=4+depth*11;}
-    else{x=577+(z.x+p.x*z.sx-577)*d+Math.sin(Math.min(1,d)*Math.PI)*p.bend*44;y=476+(z.y-p.y*z.sy-476)*d-Math.sin(Math.min(1,d)*Math.PI)*34;r=12-d*7;}
+    if(v.match.half===0){x=693+(z.x+p.x*z.sx-693)*depth+Math.sin(Math.min(1,d)*Math.PI)*p.bend*62;y=245+(z.y-p.y*z.sy-245)*depth-Math.sin(Math.min(1,d)*Math.PI)*37;r=4+depth*11;}
+    else{x=638+(z.x+p.x*z.sx-638)*d+Math.sin(Math.min(1,d)*Math.PI)*p.bend*44;y=441+(z.y-p.y*z.sy-441)*d-Math.sin(Math.min(1,d)*Math.PI)*34;r=12-d*7;}
     oval(x+3,y+25,r*.7,r*.22,'#17374922');oval(x,y,r,r,'#fffdf0');c.beginPath();c.arc(x-r*.5,y,r*.7,-1,1);c.strokeStyle='#c56256';c.lineWidth=Math.max(1,r*.14);c.stroke();
   }
 
@@ -178,6 +226,7 @@ export function createRenderer(canvas){
     const r=canvas.getBoundingClientRect(),dpr=Math.min(typeof devicePixelRatio==='number'?devicePixelRatio:1,2),w=Math.round(r.width*dpr),h=Math.round(r.height*dpr);
     if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
     const scale=r.height/720,offset=(r.width-1280*scale)/2;c.setTransform(dpr*scale,0,0,dpr*scale,offset*dpr,0);c.clearRect(-1800,0,4880,720);
+    visibleLeft=-offset/scale;visibleWidth=r.width/scale;
     if(v.phase==='play'){fieldPlay(v);return;}
     if(v.match.half===0)battingScene(v);else pitchingScene(v);
     if(!['intro','final','break','roster'].includes(v.phase))target(v);
