@@ -1,0 +1,13 @@
+.DS_Store
+build/
+App/Web/
+*.xcuserstate
+xcuserdata/
+*.p12
+*.p8
+*.mobileprovision
+*.cer
+.env
+.env.*
+*.ipa
+*.xcarchive/
