@@ -2,6 +2,15 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {makeSession,judgeSwing,judgeTake,summarize,SWING_LEAD} from './engine.mjs';
 const pitch={x:0,y:0,duration:1.25,inZone:true};
+
+test('contact assistance widens aim tolerance without changing pitch speed or timing tolerance',()=>{
+ const assisted={forgiving:true};
+ assert.equal(judgeSwing(pitch,{x:.85,y:0},pitch.duration).kind,'foul');
+ assert.equal(judgeSwing(pitch,{x:.85,y:0},pitch.duration,assisted).kind,'hit');
+ assert.equal(judgeSwing(pitch,{x:1.5,y:0},pitch.duration,assisted).kind,'miss');
+ for(const delta of [-.2,.2])assert.equal(judgeSwing(pitch,{x:0,y:0},pitch.duration+delta,assisted).kind,'miss');
+ assert.equal(pitch.duration,1.25);
+});
 test('centered on-time impact earns perfect contact',()=>{
   const result=judgeSwing(pitch,{x:0,y:0},pitch.duration);
   assert.equal(result.kind,'hit');assert.equal(result.points,100);

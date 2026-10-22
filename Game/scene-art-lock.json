@@ -1,0 +1,54 @@
+{
+  "assets": {
+    "assets/scene-ken-sora-throw-v1.png": "f66f85111185c0546ec2eb307fb2b134e08ba7b6359aa12df78ec14ab8b8f56f",
+    "assets/scene-field-elevated-v1.png": "d2289dbed46d3bd337299c906a13de06a1c57f6dde09d0f481a45066064b70b5",
+    "assets/scene-ken-field-v1.png": "e6ec6f64ced9e86edd4b9887ed65298283973241046eeb709e97e459b746b380",
+    "assets/scene-ballpark-v2.png": "eb2a3ed6ba583bf2d6e4f9aad75d4a0b3eaab5c8f4535ad04ef65e3f3c9b65f7",
+    "assets/scene-emma-ready-v7.png": "2dccf8a214d418dac32c95ddad85fab7a24c0460f1f04385c74e9d405bf79897",
+    "assets/scene-emma-motion-v7.png": "c0bc86ca83cccde1f4dd03b1c214358e7daa71a63b75c5b8effa67b6aeaa598e",
+    "assets/scene-ryan-set-v3.png": "f66ff3e31b71fd785f421e5393d574bb21a16c2ce214e7b1868aa10e8563007c",
+    "assets/scene-ryan-lift-v3.png": "3daf0d1c5397c2334f6cb157d3098734eefe2344b334990d61493a83ce738e87",
+    "assets/scene-ryan-stride-v3.png": "11a5555bd873b4370659c26276467a7a23244b8232d4f72ba68ffb13304003b1",
+    "assets/scene-ryan-release-v3.png": "5ebb4f5ed0ac1297d2a72f67fda4776a8acbd1cefaa4bb60814a72c0de2106ed",
+    "assets/scene-ryan-recovery-v3.png": "2de2822f19dae2c60e09eb97aea19d713b19c7e5ae14320ccb9f9f31e5e4008d",
+    "assets/scene-mia-fly-return-v1.png": "b444c7ae081c4e76e40302235729eea6f699703322fb02c6d74df4fdc7932bd2"
+  },
+  "characters": {
+    "assets/scene-ken-sora-throw-v1.png": [
+      "navy-stars-ken",
+      "navy-stars-ken",
+      "navy-stars-sora"
+    ],
+    "assets/scene-ken-field-v1.png": [
+      "navy-stars-ken",
+      "navy-stars-ken",
+      "navy-stars-ken"
+    ],
+    "assets/scene-emma-ready-v7.png": [
+      "coral-club-emma"
+    ],
+    "assets/scene-emma-motion-v7.png": [
+      "coral-club-emma"
+    ],
+    "assets/scene-ryan-set-v3.png": [
+      "navy-stars-ryan"
+    ],
+    "assets/scene-ryan-lift-v3.png": [
+      "navy-stars-ryan"
+    ],
+    "assets/scene-ryan-stride-v3.png": [
+      "navy-stars-ryan"
+    ],
+    "assets/scene-ryan-release-v3.png": [
+      "navy-stars-ryan"
+    ],
+    "assets/scene-ryan-recovery-v3.png": [
+      "navy-stars-ryan"
+    ],
+    "assets/scene-mia-fly-return-v1.png": [
+      "navy-stars-mia",
+      "navy-stars-mia",
+      "navy-stars-mia"
+    ]
+  }
+}

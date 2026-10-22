@@ -10,6 +10,14 @@ export const battingTeam = m => m.half;
 export const fieldingTeam = m => 1-m.half;
 export const currentBatter = m => TEAMS[m.half].players[m.order[m.half]%9];
 export const currentPitcher = m => TEAMS[1-m.half].players.find(p=>p.position==='P');
+export const GROUND_PLAY={arrival:1.05,transfer:.12,flight:.58,runner:1.95,contactHold:.1,maxDelay:.75};
+export function throwAtFirst(outcome,delay=0){
+  if(outcome.kind!=='groundout')return {...outcome};
+  const receive=GROUND_PLAY.arrival+GROUND_PLAY.transfer+GROUND_PLAY.flight+Math.max(0,delay);
+  return receive>=GROUND_PLAY.runner-1e-8?
+    {...outcome,kind:'single',detail:'Late throw. The batter beats the ball to first; other runners advance one base.'}:
+    {...outcome,detail:'The throw reaches first before the runner. Other runners hold.'};
+}
 export const halfLabel = m => `${m.half===0?'Top':'Bottom'} ${m.inning}`;
 
 function addRun(m,runner,event){
@@ -42,6 +50,35 @@ function switchHalf(m,event){
   }else if(m.inning===m.innings){finish(m);return;}else{m.inning++;m.half=0;}
 }
 
+// A completed assisted ground play carries runner identities, not just an
+// animation's generic "out" label. Recheck forces and destinations at the rules boundary.
+function applyDefense(m,outcome,event,batter,stats){
+  const c=outcome.context;
+  if(!c||c.teamId!==TEAMS[1-m.half].id||c.batterId!==batter.id||c.outs!==m.outs||JSON.stringify(c.bases)!==JSON.stringify(m.bases))throw Error('Stale defensive play context');
+  const forces={'1B':batter.id};let chain=true;
+  for(let i=0;i<3;i++){chain=chain&&Boolean(m.bases[i]);if(chain)forces[['2B','3B','HOME'][i]]=m.bases[i];}
+  const retired=outcome.retired;
+  if(!Array.isArray(retired)||retired.length>3-m.outs)throw Error('Too many defensive outs');
+  const checked=new Set();
+  for(const r of retired){
+    const from=m.bases.indexOf(r.id),behind=r.id===batter.id?[]:[batter.id,...m.bases.slice(0,from).filter(Boolean)];
+    if(!r.force||forces[r.base]!==r.id||checked.has(r.id)||behind.some(id=>checked.has(id)))throw Error('Invalid or removed force');checked.add(r.id);
+  }
+  const retiredIds=new Set(retired.map(r=>r.id)),thirdForce=m.outs+retired.length===3;
+  const movements=[{id:batter.id,base:1},...m.bases.map((id,i)=>id?{id,base:forces[['2B','3B','HOME'][i]]===id?i+2:i+1}:null).filter(Boolean)].filter(r=>!retiredIds.has(r.id));
+  const destinations=movements.filter(r=>r.base<4),runs=thirdForce?[]:movements.filter(r=>r.base===4).map(r=>r.id);
+  const same=(a,b)=>JSON.stringify(a.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))))===JSON.stringify(b.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))));
+  if(!Array.isArray(outcome.destinations)||!Array.isArray(outcome.runs)||!same(outcome.destinations,destinations)||!same(outcome.runs,runs))throw Error('Invalid defensive runner destinations');
+  const kind=retired.length?(retiredIds.has(batter.id)?'groundout':'fielderschoice'):'single';
+  if(outcome.recordAs!==kind)throw Error('Defensive scoring does not match the play');
+  m.bases=[null,null,null];for(const r of destinations)m.bases[r.base-1]=r.id;
+  m.outs+=retired.length;stats.ab++;if(kind==='single'){stats.h++;m.hits[m.half]++;}
+  event.kind=kind;event.atBatEnded=true;event.retired=structuredClone(retired);
+  for(const id of runs)addRun(m,id,event);
+  event.title=kind==='groundout'?`${batter.name} grounds out`:kind==='fielderschoice'?`${batter.name} reaches on a fielder's choice`:`${batter.name} reaches safely`;
+  if(retired.length>=2){event.playType=retired.length===3?'tripleplay':'doubleplay';event.title=retired.length===3?'Triple play!':`${batter.name} hits into a double play`;}
+}
+
 // Pure transition: never mutate a caller's match. Only completed plays enter here.
 export function applyOutcome(match,outcome){
   if(match.over)throw new Error('Game already complete');
@@ -53,6 +90,7 @@ export function applyOutcome(match,outcome){
   if(outcome.pitchKind)m.lastPitch=outcome.pitchKind;
   const stats=m.stats[batter.id];
   switch(outcome.kind){
+    case 'defensiveplay':applyDefense(m,outcome,event,batter,stats);break;
     case 'ball':m.balls++;event.title=`Ball ${m.balls}`;if(m.balls===4){advanceOnWalk(m,batter,event);stats.bb++;event.title=`${batter.name} walks`;event.kind='walk';event.atBatEnded=true;}break;
     case 'strike':
     case 'miss':m.strikes++;event.title=outcome.kind==='miss'?'Swing and miss':'Called strike';if(m.strikes===3){m.outs++;stats.k++;stats.ab++;event.title=`${batter.name} strikes out`;event.kind='strikeout';event.atBatEnded=true;}break;
@@ -65,7 +103,7 @@ export function applyOutcome(match,outcome){
     case 'groundout':case 'flyout':m.outs++;stats.ab++;event.atBatEnded=true;event.title=outcome.kind==='flyout'?`${batter.name} flies out`:`${batter.name} grounds out`;break;
     default:throw new Error(`Unknown outcome ${outcome.kind}`);
   }
-  if(event.runs)stats.rbi+=event.runs;
+  if(event.runs&&event.playType!=='doubleplay'&&event.playType!=='tripleplay')stats.rbi+=event.runs;
   event.afterBases=[...m.bases];event.outsAfterPlay=m.outs;event.countAfterPlay=[m.balls,m.strikes];
   if(event.atBatEnded){m.order[team]=(m.order[team]+1)%9;m.balls=0;m.strikes=0;}
   // Walk-off ends immediately, including a bases-loaded walk. Home runs score all runners.
@@ -89,12 +127,16 @@ export function contactOutcome(m,contact){
   const batter=currentBatter(m),rand=seededRandom(m.seed+m.pitchNumber*397+991),roll=rand();
   const q=Math.min(1,Math.max(0,contact.quality+(batter.power-75)*.0015));
   let kind;
-  if(q>.83&&roll<.42)kind='homerun';
-  else if(q>.75&&roll<.13)kind='triple';
-  else if(q>.57&&roll<.52)kind='double';
-  else if(q>.28&&roll<.80)kind='single';
+  const homeRun=q>.83?.30:q>.75?.08:0;
+  const triple=q>.70?.025:.005;
+  const double=q>.65?.20:q>.45?.09:.015;
+  const single=q>.75?.33:q>.50?.28:q>.28?.20:.06;
+  if(roll<homeRun)kind='homerun';
+  else if(roll<homeRun+triple)kind='triple';
+  else if(roll<homeRun+triple+double)kind='double';
+  else if(roll<homeRun+triple+double+single)kind='single';
   else kind=rand()<.5?'groundout':'flyout';
-  const direction=typeof contact.timingMs==='number'?Math.max(-.8,Math.min(.8,-contact.timingMs/140)):(rand()-.5)*1.5;
+  const direction=typeof contact.timingMs==='number'?Math.max(-.8,Math.min(.8,contact.timingMs/140*(batter.bats==='L'?-1:1))):(rand()-.5)*1.5;
   return {kind,quality:q,direction,distance:kind==='homerun'?1.23:kind==='double'||kind==='triple'?.82:kind==='single'?.62:.43,
     detail:kind==='groundout'?'The infield makes the play at first. Other runners hold.':kind==='flyout'?'Caught in the field. Runners hold.':kind==='homerun'?'Over the fence! Everyone comes home.':`Safe! Runners advance ${kind==='single'?'one base':kind==='double'?'two bases':'three bases'}.`};
 }

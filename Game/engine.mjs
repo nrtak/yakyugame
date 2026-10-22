@@ -1,5 +1,5 @@
 // Pure batting rules shared by the playable prototype and its tests.
-export const SWING_LEAD = 0.055; // Input-to-contact animation delay, seconds.
+export const SWING_LEAD = 0.14; // Visible input-to-contact swing, shared by scoring and rendering.
 export const SESSION_LENGTH = 10;
 export const SPEEDS = { relaxed: 1.65, standard: 1.25, quick: 0.98 };
 export const ZONE = { halfWidth: 1, halfHeight: 1 };
@@ -28,20 +28,20 @@ export function makeSession(seed = 41, speed = 'standard') {
   });
 }
 
-export function judgeSwing(pitch, aim, impactTime) {
+export function judgeSwing(pitch, aim, impactTime, {forgiving=false}={}) {
   const timingMs = (impactTime - pitch.duration) * 1000;
   const distance = Math.hypot(aim.x - pitch.x, aim.y - pitch.y);
-  const absTime = Math.abs(timingMs);
+  const absTime = Math.abs(timingMs),aimError=distance/(forgiving?1.5:1);
   const timing = absTime <= 45 ? 'On time' : timingMs < 0 ? 'Early' : 'Late';
-  if (absTime > 170 || distance > 0.9) {
+  if (absTime > 170 || aimError > 0.9) {
     return { kind: 'miss', title: 'Swing and miss', points: 0, timing, timingMs, distance, quality: 0,
       detail: absTime > 170 ? (timingMs < 0 ? 'A little early. Let the ball travel closer to the plate.' : 'A little late. Start your swing just before the ball reaches the plate.') : 'Move the aiming ring closer to the ball.' };
   }
-  if (absTime > 115 || distance > 0.64) {
+  if (absTime > 115 || aimError > 0.64) {
     return { kind: 'foul', title: 'Foul ball', points: 20, timing, timingMs, distance, quality: 0.15,
       detail: 'You made contact. A little closer in timing and aim will keep it fair.' };
   }
-  const quality = Math.max(0, 1 - 0.48 * absTime / 115 - 0.52 * distance / 0.64);
+  const quality = Math.max(0, 1 - 0.48 * absTime / 115 - 0.52 * aimError / 0.64);
   const title = quality > 0.78 ? 'Perfect contact!' : quality > 0.48 ? 'Solid contact' : 'Fair contact';
   return { kind: 'hit', title, points: Math.round(40 + quality * 60), timing, timingMs, distance, quality,
     detail: quality > 0.78 ? 'Right on the barrel. Beautiful swing!' : 'Find the center of the ball and the timing will follow.' };
