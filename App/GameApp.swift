@@ -70,7 +70,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
     }
 
     @objc func pauseGame() {
-        webView?.evaluateJavaScript("const b=document.getElementById('pause');if(b&&!b.disabled)b.click();", completionHandler: nil)
+        webView?.evaluateJavaScript("window.GameLifecycle?.pause();", completionHandler: nil)
     }
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
