@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: '22'
       - name: Test game
-        run: node --test Game/engine.test.mjs Game/match-engine.test.mjs Game/match-flow.test.mjs Game/match-render.test.mjs
+        run: node --test Game/engine.test.mjs Game/match-engine.test.mjs Game/device-game.test.mjs Game/defense-play.test.mjs Game/inning-controller.test.mjs Game/scene.test.mjs
       - name: Bundle offline game
         run: node Scripts/build-game.mjs
       - name: Build iPhone simulator app
