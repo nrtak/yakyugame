@@ -1,15 +1,17 @@
-import {createMatch,applyOutcome,currentBatter,currentPitcher,halfLabel} from './match-engine.mjs';
+import {createMatch,applyOutcome,currentBatter,currentPitcher,halfLabel,matchTeams} from './match-engine.mjs';
 import {fieldPlay} from './field-camera.mjs';
 import {GroundDefense} from './defense-play.mjs';
+import {FlightDefense} from './flight-defense.mjs';
 
 // Rules bridge for the one-inning game. Kept separate from the ten-pitch art
 // review until every lineup/camera has its own inspected character artwork.
 export class InningController {
- constructor(seed=211){this.match=createMatch({innings:1,seed});this.pending=null;this.events=[];}
+ constructor(seed=211,{innings=1,homeTeamId='navy-stars'}={}){this.match=createMatch({innings,seed,homeTeamId});this.pending=null;this.events=[];}
  get view(){return this.match.over?'final':this.match.half===0?'batting':'pitching';}
  get actors(){return {batter:currentBatter(this.match),pitcher:currentPitcher(this.match)};}
  beginContact(contact){if(this.pending||this.match.over)throw Error('Cannot begin another play');this.pending={phase:'hit',clock:0,result:{...contact},applied:false};}
- beginDefense(options={}){if(this.pending||this.match.over)throw Error('Cannot begin another play');this.pending=new GroundDefense({...options,teamId:this.match.half===0?'navy-stars':'coral-club',batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});return this.pending.state;}
+ beginDefense(options={}){if(this.pending||this.match.over)throw Error('Cannot begin another play');this.pending=new GroundDefense({...options,teamId:matchTeams(this.match)[1-this.match.half].id,batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});return this.pending.state;}
+ beginFlight(contact){if(this.pending||this.match.over)throw Error('Cannot begin another play');this.pending=new FlightDefense({contact,teamId:matchTeams(this.match)[1-this.match.half].id,batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});return this.pending.state;}
  throwTo(base){return this.pending instanceof GroundDefense?this.pending.throwTo(base):false;}
  get defenseState(){return this.pending instanceof GroundDefense?this.pending.state:null;}
  step(dt){if(!this.pending)return null;

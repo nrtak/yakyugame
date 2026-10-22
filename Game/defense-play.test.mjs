@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {GroundDefense,BASE_POINTS,DEFENSE_SPOTS} from './defense-play.mjs';
+import {GroundDefense,BASE_POINTS,DEFENSE_SPOTS,RUNNER_CLEARANCE,RECEIVER_OFFSET} from './defense-play.mjs';
 import {InningController} from './inning-controller.mjs';
 import {createMatch,applyOutcome,currentBatter} from './match-engine.mjs';
 const ready=p=>p.step(p.collectAt);
@@ -75,7 +75,27 @@ test('two existing outs allow only one more retirement and reject an invented fo
  const m=loaded();m.outs=2;const p=fromMatch(m),r=sequence(p,['2B','1B']);assert.equal(r.retired.length,1);assert.equal(p.throwTo('1B'),false);const bad=structuredClone(r);bad.retired.push({id:currentBatter(m).id,base:'1B',force:true});assert.throws(()=>applyOutcome(m,bad),/Too many/);
 });
 test('a late relay cannot turn into a guaranteed double play',()=>{
- const m=loaded(),p=fromMatch(m);ready(p);p.throwTo('2B');p.step(3);assert.ok(p.retired.length===1);assert.equal(p.finished,true);assert.equal(p.resolution.retired.length,1);
+ const m=loaded(),p=fromMatch(m);ready(p);p.throwTo('2B');p.step(3);assert.ok(p.retired.length===1);assert.equal(p.canThrow,false);p.step(2);assert.equal(p.finished,true);assert.equal(p.resolution.retired.length,1);
+});
+
+test('covering players keep bodies aside while a separate receiving foot contacts the official bag',()=>{
+ const p=new GroundDefense();p.step(2);
+ for(const f of p.state.players.filter(p=>p.covering)){assert.deepEqual(f.bagContact,BASE_POINTS[f.covering]);assert.ok(Math.abs(Math.hypot(f.point.x-f.bagContact.x,f.point.y-f.bagContact.y)-RECEIVER_OFFSET)<1e-8);}
+ const early=new GroundDefense().state.players.find(p=>p.covering==='1B');assert.equal(early.bagContact,null);
+});
+test('routine coverage and backup routes clear runners with bases empty and loaded',()=>{
+ for(const target of [{x:-45,y:105},{x:60,y:85},{x:0,y:60},{x:0,y:10},{x:0,y:250},{x:-64,y:66},{x:100,y:150}])for(const bases of [[null,null,null],['coral-club-mia','coral-club-ken','coral-club-lily']]){
+  const p=new GroundDefense({target,bases});let previous;
+  for(let t=0;t<=5;t+=.02){const points=p.players.filter(f=>f.role!=='field').map(f=>p.playerPoint(f,t));
+   for(const point of points)for(const r of p.runners)assert.ok(Math.hypot(point.x-p.runnerPoint(r,t).x,point.y-p.runnerPoint(r,t).y)>=RUNNER_CLEARANCE-1e-8);
+   if(previous)points.forEach((point,i)=>assert.ok(Math.hypot(point.x-previous[i].x,point.y-previous[i].y)<=.481));previous=points;
+  }
+ }
+});
+test('safe batter-runners touch then run through first without receiving an extra base',()=>{
+ const p=new GroundDefense();p.step(p.runnerTime);assert.deepEqual(p.state.runners[0].point,BASE_POINTS['1B']);p.step(.7);
+ assert.ok(Math.hypot(p.state.runners[0].point.x-BASE_POINTS['1B'].x,p.state.runners[0].point.y-BASE_POINTS['1B'].y)>15.9);
+ assert.deepEqual(p.resolution.destinations,[{id:'coral-club-emma',base:1}]);
 });
 test('a relay starts at the receiving player, and outs stay retired through later throws',()=>{
  const m=loaded(),p=fromMatch(m);ready(p);p.throwTo('2B');while(!p.canThrow&&!p.finished)p.step(.002);const receiver=p.state.ballOwnerId,prior=p.state.ball;p.throwTo('1B');assert.equal(p.throw.holderId,receiver);assert.ok(Math.hypot(p.state.ball.x-prior.x,p.state.ball.y-prior.y)<.01);assert.equal(p.state.runners.filter(r=>r.out).length,1);p.step(.5);assert.equal(p.state.runners.filter(r=>r.out).length,1);

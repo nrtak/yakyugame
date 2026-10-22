@@ -32,6 +32,7 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
         view.backgroundColor = UIColor(red: 0.93, green: 0.95, blue: 0.94, alpha: 1)
 
         let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
         configuration.websiteDataStore = .nonPersistent()
         configuration.allowsInlineMediaPlayback = true
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false

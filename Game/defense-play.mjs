@@ -5,6 +5,9 @@ const D=90/Math.sqrt(2);
 export const BASE_POINTS={'HOME':{x:0,y:0},'1B':{x:D,y:D},'2B':{x:0,y:2*D},'3B':{x:-D,y:D}};
 export const BASE_ORDER=['HOME','1B','2B','3B','HOME'];
 export const DEFENSE_SPOTS={P:{x:0,y:60.5},C:{x:0,y:-6},'1B':{x:64,y:85},'2B':{x:33,y:130},'3B':{x:-64,y:85},SS:{x:-33,y:130},LF:{x:-125,y:220},CF:{x:0,y:270},RF:{x:125,y:220}};
+// The receiver's body stays inside the diamond; a separate foot reaches the bag.
+export const RECEIVER_OFFSET=4.5,RUNNER_CLEARANCE=3;
+export function receivingPoint(base){const b=BASE_POINTS[base],v={'1B':[-1,0],'2B':[0,-1],'3B':[1,0],HOME:[0,1]}[base];return{x:b.x+v[0]*RECEIVER_OFFSET,y:b.y+v[1]*RECEIVER_OFFSET};}
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const clamp=v=>Math.max(0,Math.min(1,v));
 const mix=(a,b,q)=>({x:a.x+(b.x-a.x)*q,y:a.y+(b.y-a.y)*q});
@@ -27,7 +30,7 @@ export class GroundDefense {
   const candidates={'1B':['1B','P','2B'],'3B':['3B','SS','P'],'HOME':['C','P','3B'],'2B':['2B','SS','CF']};
   for(const base of ['1B','3B','HOME','2B']){
    const p=candidates[base].map(pos=>this.players.find(p=>p.position===pos)).find(p=>!used.has(p.id))??this.players.find(p=>!used.has(p.id));
-   used.add(p.id);p.role='cover';p.covering=base;p.destination={...BASE_POINTS[base]};p.arriveAt=.16+distance(p.start,p.destination)/24;this.coverage[base]=p;
+   used.add(p.id);p.role='cover';p.covering=base;p.destination=receivingPoint(base);p.arriveAt=.16+distance(p.start,p.destination)/24;this.coverage[base]=p;
   }
   // Remaining fielders support the lane; nobody converges on the pickup point.
   for(const p of this.players.filter(p=>p.role==='support')){
@@ -38,7 +41,18 @@ export class GroundDefense {
   this.runners=[{id:batterId,from:0,to:1,arriveAt:runnerTime}];
   bases.forEach((id,i)=>{if(id)this.runners.push({id,from:i+1,to:this.forces[BASE_ORDER[i+2]]===id?i+2:i+1,arriveAt:this.forces[BASE_ORDER[i+2]]===id?Math.max(.4,runnerTime-.55):0});});
  }
- playerPoint(p,time=this.clock){if(p.carry&&time>=p.carry.startAt)return mix(p.carry.from,p.carry.to,clamp((time-p.carry.startAt)/Math.max(.001,p.carry.endAt-p.carry.startAt)));return mix(p.start,p.destination,clamp((time-.16)/Math.max(.001,p.arriveAt-.16)));}
+ runnerPoint(r,time=this.clock){
+  const retired=this.retired.find(x=>x.id===r.id),at=retired?Math.min(time,retired.at):time;
+  const point=mix(BASE_POINTS[BASE_ORDER[r.from]],BASE_POINTS[BASE_ORDER[r.to]],r.to===r.from?0:clamp(at/r.arriveAt));
+  // Running through first does not award another base or change force timing.
+  if(!retired&&r.from===0&&r.to===1&&at>r.arriveAt){const beyond=Math.min(16,(at-r.arriveAt)*24)/Math.sqrt(2);point.x+=beyond;point.y+=beyond;}
+  return point;
+ }
+ playerPoint(p,time=this.clock){
+  // Coverage paths end to the side of the bag, never on the runner's target.
+  // Interpolation remains continuous and uses the same arrival time as the call.
+  return p.carry&&time>=p.carry.startAt?mix(p.carry.from,p.carry.to,clamp((time-p.carry.startAt)/Math.max(.001,p.carry.endAt-p.carry.startAt))):mix(p.start,p.destination,clamp((time-.16)/Math.max(.001,p.arriveAt-.16)));
+ }
  get activeForces(){
   const dead=new Set(this.retired.map(r=>r.id)),forces={};
   for(const [base,id]of Object.entries(this.forces)){
@@ -50,11 +64,11 @@ export class GroundDefense {
  predictThrow(base,at=this.clock){
   const receiver=this.coverage[base];if(!receiver)throw Error('Unknown throw target');
   const holder=this.throw?this.players.find(p=>p.id===this.throw.receiverId):this.fielder;
-  const releaseAt=at+.28,start=this.throw?this.playerPoint(holder,at):{...this.target},speed=125;let flight=.4,end;
+  const releaseAt=at+.28,start=this.playerPoint(holder,at),speed=125;let flight=.4,end;
   for(let i=0;i<6;i++){end=this.playerPoint(receiver,releaseAt+flight);flight=Math.max(.18,distance(start,end)/speed);}
   const catchAt=releaseAt+flight,controlAt=Math.max(catchAt,receiver.arriveAt),runner=this.runners.find(r=>r.id===this.activeForces[base]);
-  const carryTime=distance(start,BASE_POINTS[base])/24+.08;
-  if(distance(start,BASE_POINTS[base])<16&&at+carryTime<controlAt){const atBag=at+carryTime,out=Boolean(runner&&atBag<runner.arriveAt-1e-8);return {base,carry:true,holderId:holder.id,receiverId:holder.id,releaseAt:at,catchAt:atBag,controlAt:atBag,flight:carryTime,start,end:{...BASE_POINTS[base]},out,runnerId:runner?.id??null,callAt:runner?(out?atBag:runner.arriveAt):atBag,settled:false};}
+  const carryEnd=receivingPoint(base),carryTime=distance(start,carryEnd)/24+.08;
+  if(distance(start,BASE_POINTS[base])<16&&at+carryTime<controlAt){const atBag=at+carryTime,out=Boolean(runner&&atBag<runner.arriveAt-1e-8);return {base,carry:true,holderId:holder.id,receiverId:holder.id,releaseAt:at,catchAt:atBag,controlAt:atBag,flight:carryTime,start,end:carryEnd,out,runnerId:runner?.id??null,callAt:runner?(out?atBag:runner.arriveAt):atBag,settled:false};}
   const out=Boolean(runner&&controlAt<runner.arriveAt-1e-8);
   return {base,holderId:holder.id,receiverId:receiver.id,releaseAt,catchAt,controlAt,flight,start,end,out,runnerId:runner?.id??null,callAt:runner?(out?controlAt:runner.arriveAt):catchAt,settled:false};
  }
@@ -68,7 +82,7 @@ export class GroundDefense {
  }
  get finishAt(){
   if(this.context.outs+this.retired.length>=3)return this.throw.controlAt+.35;
-  const dead=new Set(this.retired.map(r=>r.id)),runnersAt=Math.max(0,...this.runners.filter(r=>!dead.has(r.id)).map(r=>r.arriveAt));
+  const dead=new Set(this.retired.map(r=>r.id)),runnersAt=Math.max(0,...this.runners.filter(r=>!dead.has(r.id)).map(r=>r.arriveAt+(r.from===0?.7:0)));
   return this.throw?Math.max(runnersAt,this.throw.catchAt+.4,this.throw.controlAt+.25):Math.max(runnersAt,this.collectAt+.4);
  }
  get finished(){return this.clock>=this.finishAt;}
@@ -79,7 +93,7 @@ export class GroundDefense {
   const t=this.clock,th=this.throw,received=Boolean(th&&t>=th.catchAt),called=Boolean(th&&t>=th.callAt);
   let phase=t<this.collectAt?'approach':'secured',possession=t<this.collectAt?'free':'fielding-glove',owner=t<this.collectAt?null:this.fielder.id,ball;
   if(t<this.collectAt){const q=clamp(t/this.ballTravel);ball={...mix(BASE_POINTS.HOME,this.target,q),z:Math.abs(Math.sin(q*Math.PI*4))*.6*(1-q)};}
-  else ball={...this.target,z:3};
+  else ball={...this.playerPoint(this.fielder),z:3};
   if(t>=this.touchAt&&t<this.collectAt){phase='gather';possession='fielding-glove';owner=this.fielder.id;ball={...this.target,z:3*clamp((t-this.touchAt)/.18)};}
   if(th){
    if(th.carry&&t<th.controlAt){phase='carry';possession='fielding-glove';owner=th.holderId;ball={...this.playerPoint(this.players.find(p=>p.id===owner)),z:3};}
@@ -88,9 +102,10 @@ export class GroundDefense {
    else{phase=this.canThrow?'secured':'received';possession='receiving-glove';owner=th.receiverId;ball={...this.playerPoint(this.players.find(p=>p.id===th.receiverId)),z:4};}
   }
   if(this.finished)phase='complete';
-  return {teamId:this.context.teamId,clock:t,phase,ball,possession,ballOwnerId:owner,fielderId:this.fielder.id,canThrow:this.canThrow,recommendation:this.recommendation,target:th?.base??null,call:called?(th.out?'out':th.runnerId?'safe':'no-force'):null,playOuts:this.retired.length,playType:this.retired.length===3?'tripleplay':this.retired.length===2?'doubleplay':null,
-   players:this.players.map(p=>({id:p.id,name:p.name,position:p.position,role:p.role,covering:p.covering??null,point:this.playerPoint(p)})),
-   runners:this.runners.map(r=>{const retired=this.retired.find(x=>x.id===r.id);return {...r,point:mix(BASE_POINTS[BASE_ORDER[r.from]],BASE_POINTS[BASE_ORDER[r.to]],r.to===r.from?0:clamp((retired?Math.min(t,retired.at):t)/r.arriveAt)),out:Boolean(retired)};}),finished:this.finished};
+  const options=this.canThrow?Object.keys(BASE_POINTS).filter(b=>b!=='HOME'||this.coverage.HOME).map(base=>{const p=this.predictThrow(base),r=this.runners.find(r=>r.id===this.activeForces[base]);return{base,receiverId:p.receiverId,force:Boolean(r),margin:r?r.arriveAt-p.controlAt:null,out:p.out};}):[];
+  return {teamId:this.context.teamId,clock:t,phase,ball,possession,ballOwnerId:owner,fielderId:this.fielder.id,canThrow:this.canThrow,recommendation:this.recommendation,throwOptions:options,throwFromId:th?.holderId??null,throwToId:th?.receiverId??null,throwProgress:th?clamp((t-th.releaseAt)/th.flight):0,target:th?.base??null,call:called?(th.out?'out':th.runnerId?'safe':'no-force'):null,playOuts:this.retired.length,playType:this.retired.length===3?'tripleplay':this.retired.length===2?'doubleplay':null,
+   players:this.players.map(p=>{const carry=p.carry&&t>=p.carry.startAt,from=carry?p.carry.from:p.start,to=carry?p.carry.to:p.destination,end=carry?p.carry.endAt:p.arriveAt;return{id:p.id,name:p.name,position:p.position,throws:p.throws,gloveHand:p.gloveHand,role:p.role,covering:p.covering??null,point:this.playerPoint(p),moving:t>(carry?p.carry.startAt:.16)&&t<end,motion:{x:to.x-from.x,y:to.y-from.y},bagContact:p.covering&&t>=end?{...BASE_POINTS[p.covering]}:null};}),
+   runners:this.runners.map(r=>({...r,point:this.runnerPoint(r),out:this.retired.some(x=>x.id===r.id)})),finished:this.finished};
  }
  get resolution(){
   if(!this.finished)return null;

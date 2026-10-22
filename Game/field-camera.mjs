@@ -13,7 +13,7 @@ export const FIELD_RECEIVE_OFFSET={x:-40.825,y:-38.525};
 const fieldClamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const fieldMix=(a,b,t)=>a+(b-a)*t;
 const fieldLerp=(a,b,t)=>({x:fieldMix(a.x,b.x,t),y:fieldMix(a.y,b.y,t)});
-export function usesFieldView(s){return (s.phase==='hit'||s.phase==='camera-review')&&s.clock>=FIELD_CUT_TIME;}
+export function usesFieldView(s){return !s.liveDefense&&(s.phase==='hit'||s.phase==='camera-review')&&s.clock>=FIELD_CUT_TIME;}
 export function fieldPlay(s){
  if(s.result?.flyBall)return flyPlay(s);
  // The roster-correct slice currently supports Ken (SS) to Sora (1B).

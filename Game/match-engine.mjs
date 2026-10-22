@@ -1,15 +1,20 @@
 import { seededRandom, SPEEDS } from './engine.mjs';
 import { TEAMS, allPlayers, playerById } from './rosters.mjs';
+import {PITCH_TYPES,pitcherRepertoire,pitchMovement} from './pitch-types.mjs';
 
-export function createMatch({innings=3,seed=211}={}) {
-  return {innings,seed,inning:1,half:0,outs:0,balls:0,strikes:0,bases:[null,null,null],score:[0,0],hits:[0,0],
+export function createMatch({innings=3,seed=211,homeTeamId='navy-stars'}={}) {
+  if(!Number.isInteger(innings)||innings<1||innings>9)throw Error('Choose 1–9 regulation innings');
+  if(!TEAMS.some(t=>t.id===homeTeamId))throw Error('Unknown home team');
+  const teamIds=[TEAMS.find(t=>t.id!==homeTeamId).id,homeTeamId];
+  return {innings,seed,teamIds,inning:1,half:0,outs:0,balls:0,strikes:0,bases:[null,null,null],score:[0,0],hits:[0,0],
     lineScore:[Array(innings).fill(null),Array(innings).fill(null)],order:[0,0],pitchNumber:0,over:false,winner:null,
     lastPitch:null,log:[],stats:Object.fromEntries(allPlayers().map(p=>[p.id,{ab:0,h:0,r:0,rbi:0,bb:0,k:0}]))};
 }
-export const battingTeam = m => m.half;
-export const fieldingTeam = m => 1-m.half;
-export const currentBatter = m => TEAMS[m.half].players[m.order[m.half]%9];
-export const currentPitcher = m => TEAMS[1-m.half].players.find(p=>p.position==='P');
+export const matchTeams = m => m.teamIds?m.teamIds.map(id=>TEAMS.find(t=>t.id===id)):TEAMS;
+export const battingTeam = m => TEAMS.indexOf(matchTeams(m)[m.half]);
+export const fieldingTeam = m => TEAMS.indexOf(matchTeams(m)[1-m.half]);
+export const currentBatter = m => TEAMS[battingTeam(m)].players[m.order[m.half]%9];
+export const currentPitcher = m => TEAMS[fieldingTeam(m)].players.find(p=>p.position==='P');
 export const GROUND_PLAY={arrival:1.05,transfer:.12,flight:.58,runner:1.95,contactHold:.1,maxDelay:.75};
 export function throwAtFirst(outcome,delay=0){
   if(outcome.kind!=='groundout')return {...outcome};
@@ -54,7 +59,7 @@ function switchHalf(m,event){
 // animation's generic "out" label. Recheck forces and destinations at the rules boundary.
 function applyDefense(m,outcome,event,batter,stats){
   const c=outcome.context;
-  if(!c||c.teamId!==TEAMS[1-m.half].id||c.batterId!==batter.id||c.outs!==m.outs||JSON.stringify(c.bases)!==JSON.stringify(m.bases))throw Error('Stale defensive play context');
+  if(!c||c.teamId!==TEAMS[fieldingTeam(m)].id||c.batterId!==batter.id||c.outs!==m.outs||JSON.stringify(c.bases)!==JSON.stringify(m.bases))throw Error('Stale defensive play context');
   const forces={'1B':batter.id};let chain=true;
   for(let i=0;i<3;i++){chain=chain&&Boolean(m.bases[i]);if(chain)forces[['2B','3B','HOME'][i]]=m.bases[i];}
   const retired=outcome.retired;
@@ -115,12 +120,14 @@ export function applyOutcome(match,outcome){
 
 export function makeMatchPitch(m,{speed='standard',kind=null,aim=null,releaseError=0}={}){
   const rand=seededRandom(m.seed+m.pitchNumber*179+37);
-  const pitchKind=kind??(['fast','fast','curve','change'][Math.floor(rand()*4)]);
+  const pitcher=currentPitcher(m),repertoire=pitcherRepertoire(pitcher.id),choices=['fast',...repertoire];
+  const pitchKind=kind??choices[Math.floor(rand()*choices.length)];
+  if(!repertoire.includes(pitchKind))throw Error('Pitch is not in this pitcher’s repertoire');
   let x,y;
   if(aim){const scatter=.08+releaseError*.7;x=aim.x+(rand()-.5)*scatter*2;y=aim.y+(rand()-.5)*scatter*2;}
   else{const outside=rand()<.23;x=(rand()-.5)*1.55;y=(rand()-.5)*1.5;if(outside){if(rand()<.5)x=(x>=0?1:-1)*(1.18+rand()*.35);else y=(y>=0?1:-1)*(1.15+rand()*.3);}}
-  return {kind:pitchKind,x,y,duration:(SPEEDS[speed]??1.25)*(pitchKind==='change'?1.23:pitchKind==='curve'?1.12:1),
-    bend:pitchKind==='curve'?(x>0?-1:1)*.9:0,inZone:Math.abs(x)<=1&&Math.abs(y)<=1,releaseError};
+  return {kind:pitchKind,pitcherId:pitcher.id,throws:pitcher.throws,x,y,duration:(SPEEDS[speed]??1.25)*PITCH_TYPES[pitchKind].duration,
+    movement:pitchMovement(pitchKind,pitcher.throws,rand()),bend:pitchKind==='curve'?(pitcher.throws==='R'?1:-1)*.9:0,inZone:Math.abs(x)<=1&&Math.abs(y)<=1,releaseError};
 }
 
 export function contactOutcome(m,contact){
@@ -154,7 +161,7 @@ export function cpuBat(m,pitch){
   return contactOutcome(m,{quality,timingMs:(rand()-.5)*140});
 }
 
-export function resultHeadline(m){return m.winner===null?'A friendly draw':`${TEAMS[m.winner].short} wins!`;}
+export function resultHeadline(m){return m.winner===null?'A friendly draw':`${matchTeams(m)[m.winner].short} wins!`;}
 export function playerOfGame(m){return allPlayers().slice().sort((a,b)=>{
   const value=p=>m.stats[p.id].h*2+m.stats[p.id].rbi*2+m.stats[p.id].r+m.stats[p.id].bb*.5;
   return value(b)-value(a);

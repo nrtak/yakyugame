@@ -310,3 +310,9 @@ export const TEAMS = [
 ];
 export const allPlayers = () => TEAMS.flatMap(t=>t.players);
 export const playerById = id => allPlayers().find(p=>p.id===id);
+export const HOME_VENUES={
+ 'aqua-pearls':'Aqua Park','blue-comets':'Blue Comets Field','coral-club':'Coral Field',
+ 'crimson-hawks':'Crimson Stadium','emerald-dragons':'Emerald Park','forest-foxes':'Forest Field',
+ 'golden-suns':'Golden Stadium','navy-stars':'Navy Stadium','sakura-blossoms':'Sakura Park','sand-dunes':'Sand Dunes Field'
+};
+export function venueName(homeTeam){if(!homeTeam?.id||!homeTeam.name)throw Error('A home team is required');return HOME_VENUES[homeTeam.id]??homeTeam.name+' Stadium';}
