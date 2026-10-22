@@ -1,21 +1,32 @@
-import {readFile,writeFile,mkdir} from 'node:fs/promises';
-const gameRoot=new URL('../Game/',import.meta.url);
+import {readFile,writeFile,mkdir,copyFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {SCENE_ASSETS} from '../Game/scene-render.mjs';
+import {TEAMS} from '../Game/rosters.mjs';
+const gameRoot=new URL('../Game/',import.meta.url),webRoot=new URL('../App/Web/',import.meta.url);
 const read=name=>readFile(new URL(name,gameRoot),'utf8');
-let html=await read('match.html'),css=await read('match.css');
-const art=await readFile(new URL('assets/match-keyart.png',gameRoot));
-css=css.replace("url('assets/match-keyart.png')",()=>`url('data:image/png;base64,${art.toString('base64')}')`);
-let mayaModule=await read('maya-art.mjs');
-for(const name of ['maya-ready-v1.png','maya-follow-v1.png','cast-coral-v1.png','cast-mixed-v2.png','cast-navy-v1.png','pitchers-v1.png','park-backdrop-v1.png']){
-  const data=await readFile(new URL(`assets/${name}`,gameRoot));
-  mayaModule=mayaModule.replace(`'assets/${name}'`,()=>JSON.stringify(`data:image/png;base64,${data.toString('base64')}`));
+const modules=['rosters.mjs','engine.mjs','match-engine.mjs','field-camera.mjs','defense-play.mjs','inning-controller.mjs','device-game.mjs','scene-engine.mjs','scene-render.mjs','device-ui.mjs'];
+let js='const __gameModules={};\n';
+for(const name of modules){
+ let source=await read(name);const exported=new Set();
+ source=source.replace(/^import\s*\{([^}]+)\}\s*from\s*['"]\.\/([^'"]+)['"];?\r?\n/gm,(_,names,dependency)=>`const {${names.replace(/\s+as\s+/g,':')}}=__gameModules[${JSON.stringify(dependency)}];\n`);
+ source=source.replace(/export\s*\{([^}]+)\};?/g,(_,names)=>{for(const n of names.split(','))exported.add(n.trim());return '';});
+ source=source.replace(/export\s+(const|let|function|class)\s+(\w+)/g,(_,kind,id)=>{exported.add(id);return `${kind} ${id}`;});
+ if(/^\s*(import|export)\s/m.test(source))throw Error(`Unbundled module statement in ${name}`);
+ js+=`__gameModules[${JSON.stringify(name)}]=(()=>{\n${source}\nreturn {${[...exported].join(',')}};\n})();\n`;
 }
-const modules=await Promise.all(['engine.mjs','rosters.mjs','match-engine.mjs','match-render.mjs','match-ui.mjs'].map(read));
-modules.splice(3,0,mayaModule);
-const js=modules.map(s=>s.replace(/^import .*?;\r?\n/gm,'').replace(/^export \{[^}]+\};?\r?\n?/gm,'').replace(/^export /gm,'')).join('\n');
 new Function(js);
-html=html.replace('<link rel="stylesheet" href="match.css">',()=>`<style>${css}</style>`);
-html=html.replace('<script type="module" src="match-ui.mjs"></script>',()=>`<script>\n(()=>{\n${js}\n})();\n</script>`);
-if(/<script[^>]+src=/.test(html))throw new Error('External scripts are not permitted');
-const webRoot=new URL('../App/Web/',import.meta.url);await mkdir(webRoot,{recursive:true});
+const lock=JSON.parse(await read('scene-art-lock.json')),selected=Object.values(SCENE_ASSETS);
+if(JSON.stringify([...selected].sort())!==JSON.stringify(Object.keys(lock.assets).sort()))throw Error('Artwork selection differs from pinned manifest');
+const ids=new Set(TEAMS.flatMap(t=>t.players.map(p=>p.id)));
+for(const names of Object.values(lock.characters))for(const id of names)if(!ids.has(id))throw Error('Unknown artwork character '+id);
+await mkdir(new URL('assets/',webRoot),{recursive:true});
+for(const name of selected){
+ if(!/^assets\/[a-z0-9-]+\.png$/.test(name))throw Error('Invalid asset path');
+ const data=await readFile(new URL(name,gameRoot));if(createHash('sha256').update(data).digest('hex')!==lock.assets[name])throw Error('Artwork changed: '+name);
+ await copyFile(new URL(name,gameRoot),new URL(name,webRoot));
+}
+const css=await read('device.css');let html=await read('device.html');
+html=html.replace('<link rel="stylesheet" href="device.css">',()=>`<style>${css}</style>`).replace('<script type="module" src="device-ui.mjs"></script>',()=>`<script>\n(()=>{\n${js}\n})();\n</script>`);
+if(/<script[^>]+src=|<link[^>]+stylesheet/.test(html))throw Error('Unbundled external source');
 await writeFile(new URL('index.html',webRoot),html);
-console.log(`Built bundled game (${Math.round(Buffer.byteLength(html)/1024)} KB).`);
+console.log(`Built offline one-inning game (${Math.round(Buffer.byteLength(html)/1024)} KB, ${selected.length} pinned artwork files).`);
