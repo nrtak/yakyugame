@@ -1,7 +1,8 @@
+import {createCup,restoreCup,prepareCupMatch as prepareBracketMatch,recordCupMatch as recordBracketMatch} from './club-cup.mjs';
 const clone=v=>structuredClone(v);
 export const SECRET_STADIUM={id:'space-station',name:'Space Station Stadium',secret:true,criteria:null,artReady:false};
 const uniqueStrings=value=>[...new Set(Array.isArray(value)?value.filter(x=>typeof x==='string'&&x.length>0&&x.length<160):[])];
-export function emptyProgression(){return{version:1,activeSeries:null,seriesHistory:[],rewardReceipts:[],awards:[],unlocks:{uniforms:[],stadiums:[],captains:[],supportPlayers:[],pitchTraining:[],reservePitchSlots:0}};}
+export function emptyProgression(){return{version:1,activeSeries:null,seriesHistory:[],activeCup:null,cupHistory:[],rewardReceipts:[],awards:[],unlocks:{uniforms:[],stadiums:[],captains:[],supportPlayers:[],pitchTraining:[],reservePitchSlots:0}};}
 export function normalizeProgression(value){
  const out=emptyProgression();if(value==null)return out;
  if(value.version!==1)throw Error('Unknown progression data');
@@ -9,7 +10,9 @@ export function normalizeProgression(value){
  for(const kind of ['uniforms','stadiums','captains','supportPlayers','pitchTraining'])out.unlocks[kind]=uniqueStrings(value.unlocks?.[kind]);
  const slots=value.unlocks?.reservePitchSlots;out.unlocks.reservePitchSlots=Number.isSafeInteger(slots)?Math.max(0,Math.min(4,slots)):0;
  if(value.activeSeries){validateSeries(value.activeSeries);out.activeSeries=clone(value.activeSeries);}
- out.seriesHistory=(Array.isArray(value.seriesHistory)?value.seriesHistory:[]).map(s=>{validateSeries(s);return clone(s);});return out;
+ out.seriesHistory=(Array.isArray(value.seriesHistory)?value.seriesHistory:[]).map(s=>{validateSeries(s);return clone(s);});
+ if(value.activeCup)out.activeCup=restoreCup(value.activeCup);
+ out.cupHistory=(Array.isArray(value.cupHistory)?value.cupHistory:[]).map(restoreCup);return out;
 }
 function validateSeries(s){
  if(!s||typeof s.id!=='string'||!s.id||s.kind!=='rivalry-series'||!Array.isArray(s.teamIds)||s.teamIds.length!==2||s.teamIds[0]===s.teamIds[1]||s.teamIds.some(t=>typeof t!=='string'||!t)||!s.teamIds.includes(s.userTeamId)||![1,3,7,9].includes(s.innings)||!['active','complete'].includes(s.status)||!Array.isArray(s.games))throw Error('Invalid series');
@@ -59,3 +62,6 @@ export function venueUnlockStatus(id,progress,readyVenues,defaultVenues=['coral-
  const p=normalizeProgression(progress),owned=defaultVenues.includes(id)||p.unlocks.stadiums.includes(id);
  return!owned?'locked':readyVenues.includes(id)?'playable':'unlocked-awaiting-art';
 }
+export function startCup(progress,config){const p=normalizeProgression(progress);if(p.activeCup&&!p.activeCup.over)throw Error('Finish your current Cup first.');if(p.cupHistory.some(c=>c.config.id===config.id))throw Error('Cup ID already used.');p.activeCup=createCup(config);return p;}
+export function prepareCupMatch(progress,matchId){const p=normalizeProgression(progress);if(!p.activeCup)throw Error('Start a Cup first.');const next=prepareBracketMatch(p.activeCup,matchId);p.activeCup=next.cup;return{progress:p,fixture:next.fixture};}
+export function recordCupMatch(progress,result){let p=normalizeProgression(progress);if(!p.activeCup)throw Error('No active Cup.');p.activeCup=recordBracketMatch(p.activeCup,result);const c=p.activeCup;if(c.over&&!p.cupHistory.some(x=>x.config.id===c.config.id)){p.cupHistory.push(clone(c));if(c.winnerId===c.config.userTeamId)p=grantProgressReward(p,{id:'cup:'+c.config.id,award:'club-cup-champion',unlocks:{uniforms:['pennant-away'],pitchTraining:['control-lab']}});}return p;}

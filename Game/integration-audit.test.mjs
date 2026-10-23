@@ -28,6 +28,18 @@ test('relaunch during every active phase restarts only the unfinished pitch and 
  }
  assert.deepEqual([...seen].sort(),['windup','flight','contact','field','review'].sort());
 });
+
+test('all four game lengths finish at every opponent skill and recover a checkpoint during play',()=>{
+ for(const innings of [1,3,7,9])for(const difficulty of ['relaxed','standard','challenging']){
+  let g=new DeviceGame({innings,difficulty,seed:731+innings,teamId:innings%3?'coral-club':'navy-stars',homeTeamId:innings%3?'navy-stars':'coral-club'});g.start();let restored=false;
+  for(let tick=0;tick<600000&&g.phase!=='final';tick++){
+   if(!restored&&g.match.pitchNumber>=5&&!g.match.over){const before=structuredClone(g.match);g=resumeMatchCheckpoint(JSON.parse(JSON.stringify(captureMatchCheckpoint(g))));assert.deepEqual(g.match,before);assert.equal(g.difficulty,difficulty);g.start();restored=true;}
+   advance(g,tick);
+  }
+  assert.equal(g.phase,'final',innings+' innings / '+difficulty);assert.equal(restored,true);assert.ok(g.match.inning<=innings);assert.equal(g.match.pitchNumber,g.match.log.length);
+  for(let side=0;side<2;side++){assert.equal(g.match.score[side],g.match.lineScore[side].reduce((n,x)=>n+(x??0),0));assert.equal(g.match.hits[side],g.teams[side].players.reduce((n,p)=>n+g.match.stats[p.id].h,0));assert.equal(g.match.score[side],g.teams[side].players.reduce((n,p)=>n+g.match.stats[p.id].r,0));}
+ }
+});
 test('actual completed games advance a saved series and grant its reward exactly once across relaunch',()=>{
  const disk=memory(),profiles=createProfileStore(disk,()=> 'audit-player'),player=profiles.create('Audit');profiles.startSeries(player.id,{id:'series-audit',teamIds:['coral-club','navy-stars'],userTeamId:'coral-club',innings:1});
  let store=profiles;

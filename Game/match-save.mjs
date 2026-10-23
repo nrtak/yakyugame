@@ -4,7 +4,7 @@ export const MATCH_SAVE_KEY='yakyugame.match-saves.v1';
 const clone=v=>structuredClone(v),uint=n=>Number.isSafeInteger(n)&&n>=0&&n<=100000;
 export function captureMatchCheckpoint(game){
  if(['menu','final'].includes(game.phase)||game.match.over)return null;
- return{version:1,kind:'pitch-checkpoint',settings:{teamId:game.teamId,homeTeamId:game.homeTeamId,seed:game.seed,innings:game.regulationInnings,assisted:game.assisted,pitchKind:game.pitchKind},match:clone(game.match)};
+ return{version:1,kind:'pitch-checkpoint',settings:{teamId:game.teamId,homeTeamId:game.homeTeamId,seed:game.seed,innings:game.regulationInnings,assisted:game.assisted,difficulty:game.difficulty,pitchKind:game.pitchKind},match:clone(game.match)};
 }
 export function resumeMatchCheckpoint(value){
  const s=value?.settings,m=value?.match;
@@ -17,20 +17,28 @@ export function resumeMatchCheckpoint(value){
  if(m.order.some(n=>n>8)||!Array.isArray(m.lineScore)||m.lineScore.length!==2||m.lineScore.some((line,i)=>!Array.isArray(line)||line.length!==m.innings||line.some(n=>n!==null&&!uint(n))||line.reduce((sum,n)=>sum+(n??0),0)!==m.score[i]))throw Error('Invalid saved innings');
  if(!Array.isArray(m.log)||m.log.length!==m.pitchNumber||m.log.some(e=>!e||typeof e.kind!=='string'||typeof e.title!=='string'))throw Error('Invalid saved play history');
  for(const p of allPlayers())for(const key of ['ab','h','r','rbi','bb','k'])if(!uint(m.stats?.[p.id]?.[key]))throw Error('Invalid saved player statistics');
+ for(let side=0;side<2;side++){
+  const players=TEAMS.find(t=>t.id===ids[side]).players;
+  if(players.reduce((n,p)=>n+m.stats[p.id].h,0)!==m.hits[side]||players.reduce((n,p)=>n+m.stats[p.id].r,0)!==m.score[side]||players.some(p=>m.stats[p.id].h+m.stats[p.id].k>m.stats[p.id].ab))throw Error('Saved statistics do not match the score');
+  for(let inning=0;inning<m.innings;inning++){
+   const past=inning<m.inning-1||(inning===m.inning-1&&side<m.half),future=inning>m.inning-1||(inning===m.inning-1&&side>m.half);
+   if((past&&m.lineScore[side][inning]===null)||(future&&m.lineScore[side][inning]!==null))throw Error('Invalid saved inning chronology');
+  }
+ }
  game.inning.match=clone(m);game.pitchKind=game.repertoire.includes(s.pitchKind)?s.pitchKind:'fast';
  // Active pitch/field animation is intentionally restarted. Completed outcomes
  // already in match are never replayed or awarded again.
  return game;
 }
 export function createMatchSaveStore(storage){
- let data={version:1,saves:{}},notice='',writable=true,guest=null;
- try{const raw=storage.getItem(MATCH_SAVE_KEY);if(raw!==null){const parsed=JSON.parse(raw);if(raw.length>4000000||parsed?.version!==1||!parsed.saves||Array.isArray(parsed.saves)||typeof parsed.saves!=='object')throw Error('Unknown saves');data=parsed;}}
+ let data={version:1,saves:Object.create(null)},notice='',writable=true,guest=null;
+ try{const raw=storage.getItem(MATCH_SAVE_KEY);if(raw!==null){const parsed=JSON.parse(raw);if(raw.length>4000000||parsed?.version!==1||!parsed.saves||Array.isArray(parsed.saves)||typeof parsed.saves!=='object')throw Error('Unknown saves');data={version:1,saves:Object.assign(Object.create(null),parsed.saves)};}}
  catch{writable=false;notice='Saved games could not be opened. New saves will last for this session.';}
  function persist(){if(!writable)return;try{storage.setItem(MATCH_SAVE_KEY,JSON.stringify(data));}catch{writable=false;notice='This game could not be saved to the device. Keep the app open to continue.';}}
  return{
   get notice(){return notice;},
-  read(profileId){const save=profileId?data.saves[profileId]:guest;if(!save)return null;try{if(typeof save.runId!=='string'||!save.runId||typeof save.series!=='boolean')throw Error('Invalid saved game');resumeMatchCheckpoint(save.checkpoint);return clone(save);}catch{notice='This saved game is unavailable. You can start a new game.';return null;}},
-  save(profileId,{runId,series=false,game}){const checkpoint=captureMatchCheckpoint(game);if(!checkpoint)return false;if(typeof runId!=='string'||!runId)throw Error('Match ID required');const value={runId,series,checkpoint,savedAt:Date.now()};if(profileId){data.saves[profileId]=value;persist();}else guest=value;return true;},
+  read(profileId){const save=profileId?data.saves[profileId]:guest;if(!save)return null;try{if(typeof save.runId!=='string'||!save.runId||typeof save.series!=='boolean'||(save.cup!==undefined&&typeof save.cup!=='boolean')||(save.cup&&save.series))throw Error('Invalid saved game');resumeMatchCheckpoint(save.checkpoint);return clone(save);}catch{notice='This saved game is unavailable. You can start a new game.';return null;}},
+  save(profileId,{runId,series=false,cup=false,game}){const checkpoint=captureMatchCheckpoint(game);if(!checkpoint)return false;if(typeof runId!=='string'||!runId)throw Error('Match ID required');if(typeof series!=='boolean'||typeof cup!=='boolean'||series&&cup)throw Error('Invalid competition save');const value={runId,series,...(cup?{cup:true}:{}),checkpoint,savedAt:Date.now()};if(profileId){data.saves[profileId]=value;persist();}else guest=value;return true;},
   clear(profileId,runId){const current=profileId?data.saves[profileId]:guest;if(!current||current.runId!==runId)return false;if(profileId){delete data.saves[profileId];persist();}else guest=null;return true;}
  };
 }

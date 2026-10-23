@@ -25,8 +25,8 @@
     "assets/scene-coral-noah-motion-v2.png": "8b4e9e45c2cbf647ead49c0565d35c99ac28750df67f56fbc58e87e0d7f07ffe",
     "assets/scene-coral-emi-ready-v4.png": "26f88a39e77c09f88e8e83c5b2ba4a88d697ed206e4bed67ec76a8195e81cd07",
     "assets/scene-coral-emi-motion-v4.png": "d81934e1ec37efed69bfa5abeff9724518c4cd5bea374d2e9b28ef31edebf566",
-    "assets/scene-coral-sora-ready-v2.png": "b46b48b421e693b565264ebbf63fecb699f6b18abf1adfdffffd4b52d4ef58be",
-    "assets/scene-coral-sora-motion-v2.png": "5a9799f877300c2522302ec40b20f8395987370cfaae8acc90555708f859ed81",
+    "assets/scene-coral-club-sora-batting-home-ready-v3.png": "f4893afcb5265427c023aa15fd68614a04489257bd591e0aee17ec7af16fbfc2",
+    "assets/scene-coral-club-sora-batting-home-motion-v3.png": "e694f62d84412b0883f74d6e3a479dbe7c39fcc9f4ff575724f198b79dfe0624",
     "assets/scene-navy-ryan-ready-v2.png": "8a8787fe962faed94b80c5d5b2cf4ed86541cc95d0ce634dcd4dcabf2cebe4b1",
     "assets/scene-navy-ryan-motion-v2.png": "8b8406da3c5f81536f9107c26b40fc7f2d0bcdeab0a2b6921a2a6acfcb73fcef",
     "assets/scene-navy-mia-ready-v2.png": "364a7d1fd76f8cbfb5ec6d63a344abe7e7dc6d50c201df5a3679d583799553df",
@@ -50,6 +50,84 @@
     "assets/scene-coral-field-scenery-v1.png": "3441f7e8677a0fde9a63689340d3e8a5b8febc1cf0cfdee2a54b7874fa48be6f",
     "assets/scene-navy-stadium-scenery-v1.png": "8bf934c64a195d4885058e3f37cb3bfe2780b177f7fbef2d80a8aa260404fb29",
     "assets/scene-navy-dylan-field-atlas-v1.png": "a1cf118f36752077a36469fc5230db5e093204970c8926cabfa361e8cd29c046",
+    "assets/scene-navy-ken-field-atlas-v3.png": "2fad38e9b484a6155cf4c3494b2f61ffb82af739780835940c8a5c4ec0ceda6c",
+    "assets/scene-coral-club-dylan-field-atlas-v1.png": "54ac7abb481aa0d1cad74b2540bb5d3c59ca191d6747a89c70886a0d1f423687",
+    "assets/scene-coral-club-lily-field-atlas-v1.png": "c89477bb3a5908b4ec80f83b28a5d7f6d64a74a5ce7d1d31c71ab4dcd6517042",
+    "assets/scene-coral-club-theo-field-atlas-v1.png": "53d6224d11cc1de3f83af3e50f6df54c9cfc0ada3d49129b52e5bc7a30e31c8a",
+    "assets/scene-navy-stars-noah-field-atlas-v1.png": "da9dbb786649f13c05236b788e8b4db2702f06f875b8240499731606007010c5",
+    "assets/scene-navy-stars-theo-field-atlas-v1.png": "b7584b12cbec14f457e5b1c6ce6c84e4df6af05ffb991936262009474381f5d8",
+    "assets/scene-navy-stars-sora-field-atlas-v1.png": "fe71c97324acb3fd8c1b29aecad216c5a3117d5fb578f0daddddab4fa3e26fc9",
+    "assets/scene-navy-stars-emma-field-atlas-v1.png": "de4b56669b5b4ba3a50bb8df82ce83fb0140f978c8d6e8792985574b925076c9",
+    "assets/scene-navy-stars-ryan-field-atlas-v1.png": "8921ce56530672e6cb1b435db7c45426161565be0ea3eb417fc30b1e47a28010",
+    "assets/scene-coral-club-emi-field-three-v3.png": "93ad13016deb062ad57d531c19e17a632303287501fd012cd1f0dc7fcc2b07a0",
+    "assets/scene-coral-club-emma-field-three-v1.png": "59a881a4a106e3a7f87cbbf083328827f7e8ae1db00d67d5caa21b48aba3a18a",
+    "assets/scene-coral-club-mia-field-three-v3.png": "6928e58872c15c92b6c5cbaaec7ed4a7988cbc2e001fd4deec8f11177c9e32cb",
+    "assets/scene-navy-stars-mia-field-three-v3.png": "1bde9bcff91c1038c38c2f0f6e9df4064fffd17ca9c726013466dfc5f78b96b1",
+    "assets/scene-navy-stars-mia-field-front-gather-capfix-v2.png": "989d97da6d96effd2f5c44879a245f53e7fe6def077b1b63eccbd94ce43dacbc",
+    "assets/scene-coral-club-emma-batting-mound-ready.png": "55b797117d2b4ec2a19f64038f7d91942811dba5e609b1cce02d8ea956bd1690",
+    "assets/scene-coral-club-mia-batting-mound-ready.png": "0b1202a1364a30541c9a6eba4d09167643af4747ae7343e7d0c72bff07c8d7a5",
+    "assets/scene-coral-club-ken-batting-mound-ready-v2.png": "88c76666303ccd39dfb14b7e85e728de65d1fff308c9c5b879f4eaad2c184b9b",
+    "assets/scene-coral-club-lily-batting-mound-ready.png": "2d4882afd27963541ca5702df37d89ee33edf84f25f386228f30f8cc11499921",
+    "assets/scene-coral-club-dylan-batting-mound-ready-v2.png": "b9c59528fdc75be2e4eb23e8a9a2a98cdc8dd66406663d2210b0edff467e2fb8",
+    "assets/scene-coral-club-noah-batting-mound-ready-v2.png": "e7060e428ccd71c8d5f814e9f0cbc819b785164849f33c0ed0c9214c4fd9ec23",
+    "assets/scene-coral-club-emi-batting-mound-ready.png": "196e70e56d73e6d3bceb3dbf60557c1b9e8beaa7824c761245444c5da11cc3c9",
+    "assets/scene-coral-club-sora-batting-mound-ready-v2.png": "22d500c7b0e17138a1f104f7a69db976dc5a3e187d268312f4f02e0a8b5878c2",
+    "assets/scene-coral-club-theo-batting-mound-ready.png": "31585720f898969c8ecb82075dde2912d4da647155d48f2ed842e7f76a3f16ed",
+    "assets/scene-navy-stars-ryan-batting-mound-ready.png": "f8d60191487d5498d2fa5759b17a93fd10082a6e33a0b15cf5e4465f249a43f3",
+    "assets/scene-navy-stars-mia-batting-mound-ready.png": "07f1e1f4cd183a49bf29b9dba7c8d55d7f60f695f521dc1df320c8835a68cea5",
+    "assets/scene-navy-stars-ken-batting-mound-ready.png": "1ce92318ca080a21ea4953d551f3af90e0f1545136c72fa4d13de6df59661ed9",
+    "assets/scene-navy-stars-lily-batting-mound-ready-v2.png": "e6449eb1cc05b176331946ccddda12c56b6667ea020befce0a104304504cf997",
+    "assets/scene-navy-stars-dylan-batting-mound-ready.png": "30eb7d27c8d6e427a1d602f3d05cd4e202ec9fb6177c8e5240f9e671e60004cf",
+    "assets/scene-navy-stars-noah-batting-mound-ready.png": "f4bf5892d19c2b25c58af34b8ee06d254c4b4ce549c302a987c8033e73d05389",
+    "assets/scene-navy-stars-emma-batting-mound-ready.png": "0ac1f8663d29656cd6143ed269f82441973175d633c647f6ed8489a099439545",
+    "assets/scene-navy-stars-sora-batting-mound-ready.png": "b155e5144b8fcedb35004da9e909a375108f4c01a61f64a3bc4cc9df29e6276c",
+    "assets/scene-navy-stars-theo-batting-mound-ready.png": "1e0fb38e6842ba32f402bc47677de189f3b774176b138cdd50ba730526df8d72",
+    "assets/scene-coral-club-emma-batting-mound-contact-v1.png": "1a8376de4f9723cc3da391f27717b8b5bc9aacb81532324788f75533967a8a21",
+    "assets/scene-coral-club-emma-batting-mound-follow-v1.png": "cccd3ac0830a13b0e06152a92abf47768e43d826db7fcec3c3b91c1b915a180c",
+    "assets/scene-coral-club-theo-batting-mound-contact-v2.png": "9e2acc491f6aabf4d5fae06967fd9f518ccc3755a5151f1738b9e6b8c9c018f6",
+    "assets/scene-coral-club-mia-batting-mound-contact-v1.png": "d32d0b1afc463b6e4e30dd5b657e3f82e649b2eb559268fecd544527a9dc545b",
+    "assets/scene-coral-club-mia-batting-mound-follow-v1.png": "de5e4fdc669880f8335ebbd89ce8a8f21f945ec70c30cda1a4f7488cfb711a91",
+    "assets/scene-navy-stars-ryan-batting-mound-contact-v1.png": "463d7c46b964cd9ccd910a25dac1cacec08ea392c4ae79045cefcdc2fb2832db",
+    "assets/scene-coral-club-ken-batting-mound-contact-v1.png": "9d7ddfab6560982fbe4abcccea6566262053d6d8e5fc0dfc590916efad3bdeb3",
+    "assets/scene-coral-club-ken-batting-mound-follow-v2.png": "a4022ad79fdbc4f4a793e722cd5cc966342608364f57f41fa2106e4466a7171a",
+    "assets/scene-coral-club-dylan-batting-mound-contact-v1.png": "30ebe6c1a1d0b228a861d93072f28cc3a30cf345abdc85df42583e203571e446",
+    "assets/scene-coral-club-lily-batting-mound-contact-v1.png": "9ff734f43ce6bc341e1c6ed81750fc6d27671f868f054c6e8aee3894016c5508",
+    "assets/scene-coral-club-lily-batting-mound-follow-v1.png": "bdb38b2cb4587186e8562396c368f3b90dac442e1f400dc1e72f6f185fc90e54",
+    "assets/scene-navy-stars-ryan-batting-mound-follow-v1.png": "09be86638c7c09b1570486afbc51effd218e81b7f6d9daa72cfed27b05a2d359",
+    "assets/scene-coral-club-dylan-batting-mound-follow-v1.png": "ae37d4e6a3acb9a119acdc6a4f23ab994d3af8f32960c5625dac0499ac2b17bd",
+    "assets/scene-coral-club-noah-batting-mound-contact-v1.png": "5ffa8a3f55ead2dca1bcebecd41e71eb68723b94a55d1483e61766b812adb4ad",
+    "assets/scene-coral-club-noah-batting-mound-follow-v1.png": "7c23cd8fd827ab7692d1f17bb25a493cd2efe99328c48725009fb4854af310ae",
+    "assets/scene-coral-club-emi-batting-mound-contact-v1.png": "51c348c2699ccca1bd0e38dc44d7680370d0b30d0bd6aac75b0d3ff2bc0e031f",
+    "assets/scene-coral-club-emi-batting-mound-follow-v1.png": "426bda696f3e7cf2fa956bfa8523f0978186c6b5bf31b43e00e250b0fcdc3865",
+    "assets/scene-coral-club-sora-batting-mound-contact-v1.png": "9fe4a1a2f2ab17b430148c96fc4d460d9abc162e8ca172cb30359ceefd76d8c7",
+    "assets/scene-coral-club-sora-batting-mound-follow-v1.png": "2b5b26e4f849c5b77a62d515fe096b2bd9406984eb31bab6fcd1d0b63085486f",
+    "assets/scene-navy-stars-mia-batting-mound-contact-v1.png": "7c94cea53775b434cd9ecba60138504377ed23f795c3002093c974bf14a7999e",
+    "assets/scene-navy-stars-mia-batting-mound-follow-v1.png": "c7be43335a3a2d18c1d34b19012b7448d4a2cae93c05b9c075e7ecaa2b746e21",
+    "assets/scene-navy-stars-ken-batting-mound-contact-v1.png": "647e34ed25f3804541050cc142220e2870dc59ddfe0d09086335ef0cbc1e23cf",
+    "assets/scene-navy-stars-ken-batting-mound-follow-v1.png": "b6736a5d91d2627436d1dcb665d325342f405d840f0449a1a9110dfae82eb85d",
+    "assets/scene-navy-stars-noah-batting-mound-contact-v1.png": "df1b4502ddfeb78188fb8c2a264bcc79538bea180e6971a6b9e62598153e161e",
+    "assets/scene-navy-stars-noah-batting-mound-follow-v1.png": "9f36c1ee59db59c2a13843b2cd806c4fde9307e3f96f0014c703d95e36fde30f",
+    "assets/scene-navy-stars-lily-batting-mound-contact-v1.png": "bc2250f60f6f051000a80234862021a5c4e59ca44167f604a887c009a4d332ab",
+    "assets/scene-navy-stars-lily-batting-mound-follow-v1.png": "d27844c4a58ad43c31863cf41ae362c4ebcf673de767ca4391d72c5d60c9bc6b",
+    "assets/scene-navy-stars-emma-batting-mound-contact-v1.png": "b508eedf63e25e0e9955fa5a1fa933934c751edf01c6db6122e6ec456c819d40",
+    "assets/scene-navy-stars-emma-batting-mound-follow-v1.png": "037f9165e3f24de4d47628f0fcbf6f8b4b6faa35c75f478e310d6f712fd8141b",
+    "assets/scene-navy-stars-sora-batting-mound-contact-v1.png": "dfca2a8e7bcdb15f7dea1df72c42dc579d8943ab0fb77e199c2cf72523d61e49",
+    "assets/scene-navy-stars-sora-batting-mound-follow-v1.png": "59c1783ba019b4ff5113a906151d86510844947728380f083232887502855fba",
+    "assets/scene-navy-stars-theo-batting-mound-contact-v1.png": "206d17bb2e73bcc553c544ff90faa122e4dcf4187c4b3face5799be543dec3ef",
+    "assets/scene-coral-club-theo-batting-mound-follow-v1.png": "df6be9ed68981603fd6b89bc821f7a8afb1a7ece6bbef5d4a52538c02bbdfc22",
+    "assets/scene-navy-stars-dylan-batting-mound-contact-v2.png": "775e65261d06d6a7d6a8930bc728f0adc9ec80e9d362f58c94b9ee4b72596e4d",
+    "assets/scene-navy-stars-dylan-batting-mound-follow-v1.png": "e1e3e2544682375530cc4887aa37d6b560dcc52c17a02438486e6c01399b4232",
+    "assets/scene-navy-stars-theo-batting-mound-follow-v2.png": "da672ba9fdbfd43c7a6e1e9897b874abab12a2a3bfa896afa9bcf54054337659",
+    "assets/scene-navy-lily-catcher-receive-v1.png": "182f73b08166ad7385d0de0937761f24aae9f81a2cf5f945a41e0d5ee5aae9ce",
+    "assets/scene-navy-lily-catcher-transfer-v1.png": "958dfe9bc202ab2ad08a673366b1a5b10d65be9606ea4da49990ef1ac69d3198",
+    "assets/scene-coral-sora-catcher-receive-v2.png": "59963bdfc0b88d263b44da689e4a2f23a6ae93a2cde690a39755080eee96be27",
+    "assets/scene-coral-sora-catcher-transfer-v1.png": "0fda9c2d9a39764da0b2dd586656435c5d30fa4a353f9513b73b958369d248d5",
+    "assets/scene-navy-lily-catcher-throw-v1.png": "15a8d7c9fe2efc1267c72d6c8adbdc325a07a2ee46473dec362e01d3cb0be1f1",
+    "assets/scene-coral-club-sora-catcher-throw-v2.png": "38b115cc3bdb2c8a20886bdeceaf7b64130989d5164dab8ab9c7b089fdb7f562",
+    "assets/scene-coral-emma-base-running-v1.png": "2d1e19177d5c420273a8cfc932bea354a589dde1fcd39b7772ad55fb602d3230",
+    "assets/scene-coral-emma-running-stride-b-v5.png": "bb562d506efd8b0aef8fd7f6e53333284462d2ecf57ee6771f3dc2dd73d785e2",
+    "assets/menu-a3-emma-ryan-v1.png": "075c99af2c1521374927f73aed644b489d8272b0356175d5f88fa477ea780eb2",
+    "assets/menu-sakura-league-background-v1.png": "9cebdf398f656f82ad0c0a9e321bd57af49898ac8f294e43b552af505c411f7c",
     "assets/scene-coral-ken-field-atlas-v4.png": "bc32872f6b2fa0cc1558010787c026c89d0990241d664dd9e29304e80e54f152",
     "assets/scene-coral-noah-field-atlas-v2.png": "c37eb446742d759d35c56e801ca164b0dd31d54a706a17206a2b20478f4d22ab",
     "assets/scene-forest-foxes-oliver-ready-v1.png": "b043197049c55879e793ef4098462656d7676fdd4017332911a2adf58fbba81c",
@@ -63,196 +141,9 @@
     "assets/scene-golden-suns-hana-ready-v1.png": "9a67090652b277f176061d6fd64e98f58e1dfd159532196aefc740af8779f9bb",
     "assets/scene-golden-suns-hana-motion-v1.png": "f56a72a9209e2725d7ccf48c426cd7eaab99826689d719a8048e3a98fdbfdeef",
     "assets/scene-sand-dunes-leo-ready-v1.png": "b9d49efd345b3eca785cd6a348358de000fefef978b3da5837f69f6ecef4e626",
-    "assets/scene-sand-dunes-leo-motion-v1.png": "7e5d4f880ebe8e8933297fd37842af2b23d7d04ece4ddac6333976b24478c258"
+    "assets/scene-sand-dunes-leo-motion-v1.png": "7e5d4f880ebe8e8933297fd37842af2b23d7d04ece4ddac6333976b24478c258",
+    "assets/scene-coral-emma-pitch-home-lift-v7.png": "2a450c45f9a4f7a637eb86e4645ee4b3d447ccce49f9550eb6cf0ae92e3ef44e",
+    "assets/scene-coral-emma-pitch-home-set-v6.png": "9fe0365f4ad8c090b8303f94460d1cbc97f307b624cafa0fb1ac2aa2c0113ce6"
   },
-  "characters": {
-    "assets/scene-mia-fly-return-v1.png": [
-      "navy-stars-mia",
-      "navy-stars-mia",
-      "navy-stars-mia"
-    ],
-    "assets/scene-ken-sora-throw-v1.png": [
-      "navy-stars-ken",
-      "navy-stars-ken",
-      "navy-stars-sora"
-    ],
-    "assets/scene-ken-field-v1.png": [
-      "navy-stars-ken",
-      "navy-stars-ken",
-      "navy-stars-ken"
-    ],
-    "assets/scene-emma-ready-v8.png": [
-      "coral-club-emma"
-    ],
-    "assets/scene-emma-motion-v8.png": [
-      "coral-club-emma",
-      "coral-club-emma"
-    ],
-    "assets/scene-ryan-set-v3.png": [
-      "navy-stars-ryan"
-    ],
-    "assets/scene-ryan-lift-v3.png": [
-      "navy-stars-ryan"
-    ],
-    "assets/scene-ryan-stride-v3.png": [
-      "navy-stars-ryan"
-    ],
-    "assets/scene-ryan-release-v3.png": [
-      "navy-stars-ryan"
-    ],
-    "assets/scene-ryan-recovery-v3.png": [
-      "navy-stars-ryan"
-    ],
-    "assets/scene-coral-mia-ready-v2.png": [
-      "coral-club-mia"
-    ],
-    "assets/scene-coral-mia-motion-v2.png": [
-      "coral-club-mia",
-      "coral-club-mia"
-    ],
-    "assets/scene-coral-ken-ready-v2.png": [
-      "coral-club-ken"
-    ],
-    "assets/scene-coral-ken-motion-v2.png": [
-      "coral-club-ken",
-      "coral-club-ken"
-    ],
-    "assets/scene-coral-lily-ready-v2.png": [
-      "coral-club-lily"
-    ],
-    "assets/scene-coral-lily-motion-v2.png": [
-      "coral-club-lily",
-      "coral-club-lily"
-    ],
-    "assets/scene-coral-dylan-ready-v2.png": [
-      "coral-club-dylan"
-    ],
-    "assets/scene-coral-dylan-motion-v2.png": [
-      "coral-club-dylan",
-      "coral-club-dylan"
-    ],
-    "assets/scene-coral-noah-ready-v2.png": [
-      "coral-club-noah"
-    ],
-    "assets/scene-coral-noah-motion-v2.png": [
-      "coral-club-noah",
-      "coral-club-noah"
-    ],
-    "assets/scene-coral-emi-ready-v4.png": [
-      "coral-club-emi"
-    ],
-    "assets/scene-coral-emi-motion-v4.png": [
-      "coral-club-emi",
-      "coral-club-emi"
-    ],
-    "assets/scene-coral-sora-ready-v2.png": [
-      "coral-club-sora"
-    ],
-    "assets/scene-coral-sora-motion-v2.png": [
-      "coral-club-sora",
-      "coral-club-sora"
-    ],
-    "assets/scene-navy-ryan-ready-v2.png": [
-      "navy-stars-ryan"
-    ],
-    "assets/scene-navy-ryan-motion-v2.png": [
-      "navy-stars-ryan"
-    ],
-    "assets/scene-navy-mia-ready-v2.png": [
-      "navy-stars-mia"
-    ],
-    "assets/scene-navy-mia-motion-v2.png": [
-      "navy-stars-mia"
-    ],
-    "assets/scene-navy-ken-ready-v2.png": [
-      "navy-stars-ken"
-    ],
-    "assets/scene-navy-ken-motion-v2.png": [
-      "navy-stars-ken"
-    ],
-    "assets/scene-navy-lily-ready-v2.png": [
-      "navy-stars-lily"
-    ],
-    "assets/scene-navy-lily-motion-v2.png": [
-      "navy-stars-lily"
-    ],
-    "assets/scene-navy-noah-ready-v2.png": [
-      "navy-stars-noah"
-    ],
-    "assets/scene-navy-noah-motion-v2.png": [
-      "navy-stars-noah"
-    ],
-    "assets/scene-navy-emma-ready-v2.png": [
-      "navy-stars-emma"
-    ],
-    "assets/scene-navy-emma-motion-v2.png": [
-      "navy-stars-emma"
-    ],
-    "assets/scene-navy-sora-ready-v2.png": [
-      "navy-stars-sora"
-    ],
-    "assets/scene-navy-sora-motion-v2.png": [
-      "navy-stars-sora"
-    ],
-    "assets/scene-navy-theo-ready-v2.png": [
-      "navy-stars-theo"
-    ],
-    "assets/scene-navy-theo-motion-v2.png": [
-      "navy-stars-theo"
-    ],
-    "assets/scene-coral-theo-ready-v3.png": [
-      "coral-club-theo"
-    ],
-    "assets/scene-coral-theo-motion-v4.png": [
-      "coral-club-theo"
-    ],
-    "assets/scene-navy-dylan-ready-v1.png": [
-      "navy-stars-dylan"
-    ],
-    "assets/scene-navy-dylan-motion-v2.png": [
-      "navy-stars-dylan"
-    ],
-    "assets/scene-coral-ken-field-atlas-v4.png": [
-      "coral-club-ken"
-    ],
-    "assets/scene-coral-noah-field-atlas-v2.png": [
-      "coral-club-noah"
-    ],
-    "assets/scene-forest-foxes-oliver-ready-v1.png": [
-      "forest-foxes-oliver"
-    ],
-    "assets/scene-forest-foxes-oliver-motion-v1.png": [
-      "forest-foxes-oliver"
-    ],
-    "assets/scene-sakura-blossoms-yui-ready-v1.png": [
-      "sakura-blossoms-yui"
-    ],
-    "assets/scene-sakura-blossoms-yui-motion-v1.png": [
-      "sakura-blossoms-yui"
-    ],
-    "assets/scene-blue-comets-chloe-ready-v1.png": [
-      "blue-comets-chloe"
-    ],
-    "assets/scene-blue-comets-chloe-motion-v1.png": [
-      "blue-comets-chloe"
-    ],
-    "assets/scene-crimson-hawks-daniel-ready-v1.png": [
-      "crimson-hawks-daniel"
-    ],
-    "assets/scene-crimson-hawks-daniel-motion-v1.png": [
-      "crimson-hawks-daniel"
-    ],
-    "assets/scene-golden-suns-hana-ready-v1.png": [
-      "golden-suns-hana"
-    ],
-    "assets/scene-golden-suns-hana-motion-v1.png": [
-      "golden-suns-hana"
-    ],
-    "assets/scene-sand-dunes-leo-ready-v1.png": [
-      "sand-dunes-leo"
-    ],
-    "assets/scene-sand-dunes-leo-motion-v1.png": [
-      "sand-dunes-leo"
-    ]
-  }
+  "characters": {}
 }

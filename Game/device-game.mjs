@@ -1,3 +1,4 @@
+import {cpuDifficulty} from './cpu-difficulty.mjs';
 import {InningController} from './inning-controller.mjs';
 import {TEAMS,currentBatter,currentPitcher,makeMatchPitch,cpuBat,matchTeams} from './match-engine.mjs';
 import {venueName} from './rosters.mjs';
@@ -7,7 +8,7 @@ export const GAME_FORMATS={1:'Practice Inning',3:'Quick Game',7:'Regular Game',9
 export function gameFormatLabel(innings){return (GAME_FORMATS[innings]??'Exhibition Game')+' · '+innings+' inning'+(innings===1?'':'s');}
 
 export class DeviceGame {
- constructor({teamId='coral-club',seed=211,assisted=true,innings=1,homeTeamId='navy-stars'}={}){if(!TEAMS.some(t=>t.id===teamId))throw Error('Unknown team');this.teamId=teamId;this.seed=seed;this.assisted=assisted;this.regulationInnings=innings;this.homeTeamId=homeTeamId;this.reset();}
+ constructor({teamId='coral-club',seed=211,assisted=true,innings=1,homeTeamId='navy-stars',difficulty='standard'}={}){cpuDifficulty(difficulty);this.difficulty=difficulty;if(!TEAMS.some(t=>t.id===teamId))throw Error('Unknown team');this.teamId=teamId;this.seed=seed;this.assisted=assisted;this.regulationInnings=innings;this.homeTeamId=homeTeamId;this.reset();}
  reset(){this.inning=new InningController(this.seed,{innings:this.regulationInnings,homeTeamId:this.homeTeamId});this.phase='menu';this.clock=0;this.elapsed=0;this.aim={x:0,y:0};this.swingAt=null;this.pitch=null;this.contact=null;this.paused=false;this.event=null;this.pitchKind='fast';this.autoClock=0;this.atBat=null;}
  get match(){return this.inning.match;}
  get batter(){return currentBatter(this.match);}
@@ -21,10 +22,10 @@ export class DeviceGame {
  get defense(){return this.inning.defenseState;}
  get venue(){return venueName(this.teams[1]);}
  start(){if(this.phase!=='menu')return false;this.next();return true;}
- next(){if(this.paused||(this.phase!=='menu'&&this.phase!=='review'))return false;if(this.match.over){this.phase='final';return false;}if(!this.repertoire.includes(this.pitchKind))this.pitchKind='fast';this.atBat={batter:this.batter,pitcher:this.pitcher,userBatting:this.userBatting,half:this.match.half,inning:this.match.inning};this.clock=0;this.elapsed=0;this.swingAt=null;this.contact=null;this.event=null;this.cpu=null;this.autoClock=0;this.aim={x:0,y:0};if(this.userBatting){this.pitch=makeMatchPitch(this.match);this.phase='windup';}else{this.pitch=null;this.phase='pitch-ready';}return true;}
+ next(){if(this.paused||(this.phase!=='menu'&&this.phase!=='review'))return false;if(this.match.over){this.phase='final';return false;}if(!this.repertoire.includes(this.pitchKind))this.pitchKind='fast';this.atBat={batter:this.batter,pitcher:this.pitcher,userBatting:this.userBatting,half:this.match.half,inning:this.match.inning};this.clock=0;this.elapsed=0;this.swingAt=null;this.contact=null;this.event=null;this.cpu=null;this.autoClock=0;this.aim={x:0,y:0};if(this.userBatting){this.pitch=makeMatchPitch(this.match,{difficulty:this.difficulty});this.phase='windup';}else{this.pitch=null;this.phase='pitch-ready';}return true;}
  setAim(x,y){if(!Number.isFinite(x)||!Number.isFinite(y)||this.paused||this.swingAt!==null||!['pitch-ready','windup','flight'].includes(this.phase))return;this.aim={x:Math.max(-1.7,Math.min(1.7,x)),y:Math.max(-1.4,Math.min(1.4,y))};}
  choosePitch(kind){if(this.paused||this.phase!=='pitch-ready'||!this.repertoire.includes(kind))return false;this.pitchKind=kind;return true;}
- releasePitch(){if(this.paused||this.phase!=='pitch-ready')return false;this.pitch=makeMatchPitch(this.match,{kind:this.pitchKind,aim:this.aim});this.cpu=cpuBat(this.match,this.pitch);this.clock=0;this.phase='windup';return true;}
+ releasePitch(){if(this.paused||this.phase!=='pitch-ready')return false;this.pitch=makeMatchPitch(this.match,{kind:this.pitchKind,aim:this.aim});this.cpu=cpuBat(this.match,this.pitch,{difficulty:this.difficulty});this.clock=0;this.phase='windup';return true;}
  swing(){if(this.paused||!this.userBatting||this.phase!=='flight'||this.swingAt!==null)return false;this.swingAt=this.elapsed;this.contact=judgeSwing(this.pitch,this.aim,this.elapsed+SWING_LEAD,{forgiving:this.assisted});return true;}
  throwTo(base){return !this.paused&&this.phase==='field'&&!this.userBatting?this.inning.throwTo(base):false;}
  finishPitch(outcome){this.event=this.inning.pitchResult(outcome);this.clock=0;this.phase='review';}
@@ -48,7 +49,9 @@ export class DeviceGame {
    const event=this.inning.step(dt);if(event){this.event=event;this.clock=0;this.phase='review';}
   }
  }
- sceneState(){const batter=this.renderBatter,pitcher=this.renderPitcher;return {venue:this.venue,homeTeamId:this.homeTeamId,liveDefense:true,phase:this.phase==='contact'?'hit':this.phase==='review'?'result':this.phase,clock:this.clock,elapsed:this.elapsed,pitch:this.pitch,aim:this.aim,swingAt:this.swingAt,result:this.contact,batterId:batter.id,batterName:batter.name,batterHand:batter.bats,pitcherId:pitcher.id,pitcherName:pitcher.name};}
+ sceneState(){const batter=this.renderBatter,pitcher=this.renderPitcher,team=this.teams.find(t=>t.players.some(p=>p.id===pitcher.id)),catcher=team.players.find(p=>p.position==='C');
+  const cpuSwings=!this.viewingBatting&&this.cpu&&!['ball','strike'].includes(this.cpu.kind),swingAt=cpuSwings&&this.pitch?Math.max(0,this.pitch.duration-SWING_LEAD):this.swingAt;
+  return {venue:this.venue,homeTeamId:this.homeTeamId,liveDefense:true,phase:this.phase==='contact'?'hit':this.phase==='review'?'result':this.phase,clock:this.clock,elapsed:this.elapsed,pitch:this.pitch,aim:this.aim,swingAt,result:this.contact,pitchOutcome:this.contact??this.cpu??this.event,batterId:batter.id,batterName:batter.name,batterHand:batter.bats,pitcherId:pitcher.id,pitcherName:pitcher.name,pitcherHand:pitcher.throws,catcherId:catcher.id,catcherName:catcher.name,teamColor:team.color};}
  pause(){if(!['menu','final'].includes(this.phase))this.paused=true;}
  resume(){this.paused=false;}
 }

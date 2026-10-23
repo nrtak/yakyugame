@@ -1,6 +1,10 @@
 import {swingFrame,pitcherFrame} from './scene-engine.mjs';
 import {PRACTICE_CAPTAINS} from './batting-practice.mjs';
+import {playerById} from './rosters.mjs';
 import {projectPitch} from './pitch-types.mjs';
+import {APPROVED_FIELD_ASSETS,APPROVED_FIELD_CAST} from './field-atlas.mjs';
+import {OPPOSING_ASSETS,CATCHER_CAST,opposingBatterPose,catcherPose,opposingArtKeys,catcherAction} from './opposing-art.mjs';
+import {RUNNING_ASSETS,liveRunnerPose} from './running-art.mjs';
 import {usesFieldView,fieldPlay} from './field-camera.mjs';
 import {LIVE_FIELD_POSES,LIVE_FIELD_SCALE,fieldProject,liveFieldPose,liveBallPoint,poseGround,fieldPoseDefinition} from './live-field-art.mjs';
 export const SCENE_ASSETS={flyFielder:'assets/scene-mia-fly-return-v1.png',fieldThrow:'assets/scene-ken-sora-throw-v1.png',fieldPark:'assets/scene-field-elevated-v1.png',fielder:'assets/scene-ken-field-v1.png',park:'assets/scene-ballpark-v3.png',batterReady:'assets/scene-emma-ready-v8.png',batterMotion:'assets/scene-emma-motion-v8.png',pitcherSet:'assets/scene-ryan-set-v3.png',pitcherLift:'assets/scene-ryan-lift-v3.png',pitcherStride:'assets/scene-ryan-stride-v3.png',pitcherRelease:'assets/scene-ryan-release-v3.png',pitcherRecovery:'assets/scene-ryan-recovery-v3.png'};
@@ -24,6 +28,8 @@ Object.assign(SCENE_ASSETS,{miaReady:'assets/scene-coral-mia-ready-v2.png',miaMo
 for(const name of ['noah','emi','sora']){const id='coral-club-'+name,key='coral'+name;SCENE_ASSETS[key+'Ready']='assets/scene-coral-'+name+'-ready-v1.png';SCENE_ASSETS[key+'Motion']='assets/scene-coral-'+name+'-motion-v1.png';BATTER_CAST[id]={ready:key+'Ready',motion:key+'Motion'};}
 SCENE_ASSETS.coralemiReady='assets/scene-coral-emi-ready-v4.png';SCENE_ASSETS.coralemiMotion='assets/scene-coral-emi-motion-v4.png';
 for(const name of ['noah','sora'])for(const phase of ['Ready','Motion'])SCENE_ASSETS['coral'+name+phase]='assets/scene-coral-'+name+'-'+phase.toLowerCase()+'-v2.png';
+SCENE_ASSETS.coralsoraReady='assets/scene-coral-club-sora-batting-home-ready-v3.png';
+SCENE_ASSETS.coralsoraMotion='assets/scene-coral-club-sora-batting-home-motion-v3.png';
 for(const name of ['ryan','mia','ken','lily','noah','emma','sora','theo']){
  const ready='navy'+name+'Ready',motion='navy'+name+'Motion';
  SCENE_ASSETS[ready]='assets/scene-navy-'+name+'-ready-v2.png';SCENE_ASSETS[motion]='assets/scene-navy-'+name+'-motion-v2.png';
@@ -42,6 +48,11 @@ SCENE_ASSETS.navydylanReady='assets/scene-navy-dylan-ready-v1.png';SCENE_ASSETS.
 BATTER_CAST['navy-stars-dylan']={ready:'navydylanReady',motion:'navydylanMotion',hand:'L',poses:LEFT_BATTER_POSES};
 Object.assign(SCENE_ASSETS,{coralScenery:'assets/scene-coral-field-scenery-v1.png',navyScenery:'assets/scene-navy-stadium-scenery-v1.png'});
 SCENE_ASSETS.navyDylanField='assets/scene-navy-dylan-field-atlas-v1.png';
+SCENE_ASSETS.navyKenField='assets/scene-navy-ken-field-atlas-v3.png';
+Object.assign(SCENE_ASSETS,APPROVED_FIELD_ASSETS);
+Object.assign(SCENE_ASSETS,OPPOSING_ASSETS);
+Object.assign(SCENE_ASSETS,RUNNING_ASSETS);
+SCENE_ASSETS.menuCaptains='assets/menu-a3-emma-ryan-v1.png';SCENE_ASSETS.menuBackground='assets/menu-sakura-league-background-v1.png';
 SCENE_ASSETS.coralKenField='assets/scene-coral-ken-field-atlas-v4.png';SCENE_ASSETS.coralNoahField='assets/scene-coral-noah-field-atlas-v2.png';
 for(const p of PRACTICE_CAPTAINS){const key=p.id.replaceAll('-','');SCENE_ASSETS[key+'Ready']='assets/scene-'+p.id+'-ready-v1.png';SCENE_ASSETS[key+'Motion']='assets/scene-'+p.id+'-motion-v1.png';BATTER_CAST[p.id]={ready:key+'Ready',motion:key+'Motion',hand:p.bats,...(p.bats==='L'?{poses:LEFT_BATTER_POSES}:{})};}
 // Yui's contact barrel extends farther than the shared sheet's gutter. Her
@@ -68,6 +79,13 @@ export const PITCHER_POSES=[
  {asset:'pitcherRecovery',sourceWidth:1024,rect:[0,0,1024,1536],anchor:[775,1475],world:[988,590],support:'L'}
 ];
 export const PITCHER_SCALE=.15;
+SCENE_ASSETS.emmaPitchLift='assets/scene-coral-emma-pitch-home-lift-v7.png';
+SCENE_ASSETS.emmaPitchSet='assets/scene-coral-emma-pitch-home-set-v6.png';
+export function characterPitcherPose(id,frame){
+ if(id==='navy-stars-ryan')return PITCHER_POSES[frame]??null;
+ if(id==='coral-club-emma'&&(frame===0||frame===1))return{asset:frame===0?'emmaPitchSet':'emmaPitchLift',sourceWidth:1024,rect:[0,0,1024,1536],anchor:[750,1435],world:[957,546],support:'L'};
+ return null;
+}
 export function pitcherPoint(frame,point){const p=PITCHER_POSES[frame];return {x:p.world[0]+(point[0]-p.anchor[0])*PITCHER_SCALE,y:p.world[1]+(point[1]-p.anchor[1])*PITCHER_SCALE};}
 export const PITCH_RELEASE_FRAME=3;
 export const PITCH_RELEASE_HAND=[158,250];
@@ -76,23 +94,28 @@ export const BAT_CONTACT_POINT=batterPoint(2,[573+320/.9,837-320/.9]);
 export const SCENE_GEOMETRY={width:1600,height:960,zone:{...BAT_CONTACT_POINT,rx:65,ry:86},release:pitcherPoint(PITCH_RELEASE_FRAME,PITCH_RELEASE_HAND)};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function createArtLoader(paths,makeImage=()=>new Image()){
- const art={},pending=new Map(),measurements=new Map();let peakDecodedBytes=0,loads=0,failures=0;
+ const art={},pending=new Map(),measurements=new Map(),wanted=new Set();let peakDecodedBytes=0,loads=0,failures=0;
  const decodedBytes=()=>Object.values(art).reduce((n,img)=>n+(img.naturalWidth??0)*(img.naturalHeight??0)*4,0);
  function load(keys){return Promise.all([...new Set(keys)].map(key=>{
-  if(art[key])return art[key];if(pending.has(key))return pending.get(key);
+  wanted.add(key);if(art[key])return art[key];if(pending.has(key))return pending.get(key);
   if(!paths[key])return Promise.reject(new Error('Unknown artwork: '+key));
   const started=performance.now();loads++;
-  const request=new Promise((resolve,reject)=>{const img=makeImage();img.onload=()=>{art[key]=img;pending.delete(key);measurements.set(key,{key,width:img.naturalWidth??0,height:img.naturalHeight??0,loadMs:performance.now()-started});peakDecodedBytes=Math.max(peakDecodedBytes,decodedBytes());resolve(img);};img.onerror=()=>{failures++;pending.delete(key);reject(new Error('Unable to load '+key));};img.src=paths[key];});pending.set(key,request);return request;
+  const request=new Promise((resolve,reject)=>{const img=makeImage();img.onload=()=>{if(wanted.has(key))art[key]=img;pending.delete(key);measurements.set(key,{key,width:img.naturalWidth??0,height:img.naturalHeight??0,loadMs:performance.now()-started});peakDecodedBytes=Math.max(peakDecodedBytes,decodedBytes());resolve(img);};img.onerror=()=>{failures++;pending.delete(key);reject(new Error('Unable to load '+key));};img.src=paths[key];});pending.set(key,request);return request;
  }));}
- function retain(keys){const keep=new Set(keys);for(const key of Object.keys(art))if(!keep.has(key))delete art[key];}
+ function retain(keys){wanted.clear();for(const key of keys)wanted.add(key);for(const key of Object.keys(art))if(!wanted.has(key))delete art[key];}
  return{art,load,retain,get metrics(){return{loadedKeys:Object.keys(art),pending:pending.size,loads,failures,decodedBytes:decodedBytes(),peakDecodedBytes,images:[...measurements.values()],note:'RGBA image estimate only; excludes browser, GPU, canvas and WebKit memory.'};}};
 }
 export function pitchPosition(p,t){const b=projectPitch(p,t,p.release??SCENE_GEOMETRY.release,SCENE_GEOMETRY.zone);return {...b,r:6+8*b.q*b.q};}
 export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank=createArtLoader(SCENE_ASSETS),art=bank.art;
- const defenseSets={'coral-club':['fieldPark','coralKenField','coralNoahField'],'navy-stars':['fieldPark','fielder','fieldThrow','flyFielder','navyDylanField']};
- const batterKeys=new Set(Object.values(BATTER_CAST).flatMap(p=>[p.ready,p.motion])),venueKeys=new Set(Object.values(STADIUM_ART)),defenseKeys=new Set(Object.values(defenseSets).flat()),pinned=Object.keys(SCENE_ASSETS).filter(key=>!batterKeys.has(key)&&!venueKeys.has(key)&&!defenseKeys.has(key));
- let recent=['coral-club-emma'],currentVenue='navyScenery',currentDefense=[];const failedCharacters=new Set();const ready=bank.load([...pinned,'batterReady','batterMotion',currentVenue]);
- function retainArt(){bank.retain([...pinned,currentVenue,...currentDefense,...recent.flatMap(x=>[BATTER_CAST[x].ready,BATTER_CAST[x].motion])]);}
+ const defenseSets={'coral-club':['fieldPark','coralKenField','coralNoahField'],'navy-stars':['fieldPark','fielder','fieldThrow','flyFielder','navyDylanField','navyKenField']};
+ for(const [id,cast]of Object.entries(APPROVED_FIELD_CAST)){const team=id.startsWith('coral-club-')?'coral-club':'navy-stars';for(const asset of [cast.asset,...Object.values(cast.poses??{}).map(p=>p.asset).filter(Boolean)])if(!defenseSets[team].includes(asset))defenseSets[team].push(asset);}
+ for(const [id,cast]of Object.entries(CATCHER_CAST))defenseSets[id.startsWith('coral-club')?'coral-club':'navy-stars'].push(cast.receive,cast.transfer);
+ defenseSets['coral-club'].push('coralCatcherThrow');
+ defenseSets['navy-stars'].push('navyCatcherThrow',...Object.keys(RUNNING_ASSETS));
+ const batterKeys=new Set(Object.values(BATTER_CAST).flatMap(p=>[p.ready,p.motion])),venueKeys=new Set(Object.values(STADIUM_ART)),defenseKeys=new Set(Object.values(defenseSets).flat()),opposingKeys=new Set(Object.keys(OPPOSING_ASSETS)),pinned=Object.keys(SCENE_ASSETS).filter(key=>!key.startsWith('menu')&&!batterKeys.has(key)&&!venueKeys.has(key)&&!defenseKeys.has(key)&&!opposingKeys.has(key));
+ let recent=['coral-club-emma'],currentVenue='navyScenery',currentDefense=[],currentOpposing=[];const failedCharacters=new Set();const ready=bank.load([...pinned,'batterReady','batterMotion',currentVenue]);
+ function retainArt(){bank.retain([...pinned,currentVenue,...currentDefense,...currentOpposing,...recent.flatMap(x=>[BATTER_CAST[x].ready,BATTER_CAST[x].motion])]);}
+ async function prepareOpposing(batterId,catcherId){currentOpposing=opposingArtKeys(batterId,catcherId);await bank.load(currentOpposing);retainArt();}
  async function prepareDefense(id){const keys=defenseSets[id];if(!keys)throw Error('Unknown defending team');currentDefense=keys;await bank.load(keys);retainArt();}
  async function prepareVenue(id){const key=STADIUM_ART[id];if(!key)return;currentVenue=key;await bank.load([key]);retainArt();}
  async function prepareBatter(id,hand){const cast=BATTER_CAST[id];if(!cast||!characterBatterPose(id,hand,0))return;
@@ -104,7 +127,7 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
  }
  function oval(x,y,rx,ry,color){c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fillStyle=color;c.fill();}
  function sprite(image,rect,anchor,world,scale,mask=null){if(mask){c.save();c.beginPath();mask.forEach((p,i)=>c[i?'lineTo':'moveTo'](world[0]+(p[0]-anchor[0])*scale,world[1]+(p[1]-anchor[1])*scale));c.closePath();c.clip();}c.drawImage(image,...rect,world[0]+(rect[0]-anchor[0])*scale,world[1]+(rect[1]-anchor[1])*scale,rect[2]*scale,rect[3]*scale);if(mask)c.restore();}
- function pitcher(frame){const p=PITCHER_POSES[frame],img=art[p.asset];const k=img.naturalWidth/p.sourceWidth;oval(p.world[0],p.world[1],24,4,'#173b3e30');sprite(img,p.rect.map(v=>v*k),p.anchor.map(v=>v*k),p.world,PITCHER_SCALE/k);}
+ function pitcher(frame,id='navy-stars-ryan'){const p=characterPitcherPose(id,frame),img=p&&art[p.asset];if(!img)return false;const k=img.naturalWidth/p.sourceWidth;oval(p.world[0],p.world[1],24,4,'#173b3e30');sprite(img,p.rect.map(v=>v*k),p.anchor.map(v=>v*k),p.world,PITCHER_SCALE/k);return true;}
  function batter(frame,id='coral-club-emma',hand='R'){const p=characterBatterPose(id,hand,frame),img=art[p.asset],k=img.naturalWidth/p.sourceWidth;
   sprite(img,p.rect.map(v=>v*k),p.anchor.map(v=>v*k),p.world,p.scale/k);
  }
@@ -129,7 +152,8 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
   // the open glove pocket so the pickup remains readable on a phone.
   ball(f.ball.x,f.ball.y,4);
   c.restore();
-  c.fillStyle='#183b54df';c.fillRect(40,810,410,76);c.fillStyle='#fff';c.font='bold 24px system-ui';c.fillText((f.received?'SORA · 1B':f.flyBall?'MIA · CF':'KEN · SS')+' · '+f.stage,60,844);c.font='18px system-ui';c.fillText(f.flyBall?'Fly catch and return':'First-base timing · runner art pending',60,873);
+  const actor=playerById(f.received?f.receiverId:f.fielderId);
+  c.fillStyle='#183b54df';c.fillRect(40,810,410,76);c.fillStyle='#fff';c.font='bold 24px system-ui';c.fillText(actor.name+' · '+actor.position+' · '+f.stage,60,844);c.font='18px system-ui';c.fillText(f.flyBall?'Fly catch and return':'First-base timing · runner art pending',60,873);
   if(f.call){c.fillStyle=f.call==='out'?'#a83735ee':'#176b50ee';c.fillRect(630,110,340,65);c.fillStyle='white';c.font='bold 34px system-ui';c.textAlign='center';c.fillText(f.flyBall?'FLY OUT':f.call==='out'?'OUT AT FIRST':'SAFE AT FIRST',800,154);c.textAlign='start';}
  }
  function draw(s){c.clearRect(0,0,1600,960);if(!art.park)return;if(usesFieldView(s)){fieldView(s);return;}c.drawImage(art.park,0,0,1600,960);
@@ -138,7 +162,7 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
   const id=s.batterId??'coral-club-emma',hand=s.batterHand??'R',pose=characterBatterPose(id,hand,swingFrame(s));
   if(pose&&!art[pose.asset]&&!failedCharacters.has(id))prepareBatter(id,hand).catch(()=>{});
   // No captain-clone placeholders: supporting players need their own reviewed art.
-  if(!s.pitcherId||s.pitcherId==='navy-stars-ryan')pitcher(pitcherFrame(s));else{oval(957,490,42,42,'#173d59');c.fillStyle='white';c.font='bold 21px system-ui';c.textAlign='center';c.fillText(s.pitcherName+' · LHP',957,498);c.font='16px system-ui';c.fillText('Art pending',957,560);c.textAlign='start';}
+  if(!pitcher(pitcherFrame(s),s.pitcherId??'navy-stars-ryan')){oval(957,490,42,42,'#173d59');c.fillStyle='white';c.font='bold 21px system-ui';c.textAlign='center';c.fillText(s.pitcherName+' · LHP',957,498);c.font='16px system-ui';c.fillText('Pitching frames in progress',957,560);c.textAlign='start';}
   if(pose&&art[pose.asset]){oval(470,925,87,12,'#173b3e25');batter(swingFrame(s),s.batterId,s.batterHand);}
   else{const left=s.batterHand!=='L',x=left?430:1220;c.fillStyle='#193d58e8';c.fillRect(x-150,715,300,115);c.fillStyle='#fff';c.font='bold 25px system-ui';c.textAlign='center';c.fillText(s.batterName+' · '+s.batterHand+' BAT',x,758);c.font='19px system-ui';c.fillText('Character artwork pending',x,795);c.textAlign='start';const t=s.swingAt===null?0:Math.max(0,s.elapsed-s.swingAt),a=t<.14?-1.1+t*9: .2+Math.min(t-.14,.4)*3;c.save();c.translate(left?680:1110,645);c.rotate(left?a:-a);c.strokeStyle='#d5a157';c.lineWidth=22;c.lineCap='round';c.beginPath();c.moveTo(0,0);c.lineTo(165,-100);c.stroke();c.restore();}
   const z=SCENE_GEOMETRY.zone;c.strokeStyle='#fff9e3bb';c.lineWidth=3;c.strokeRect(z.x-z.rx,z.y-z.ry,z.rx*2,z.ry*2);const x=z.x+s.aim.x*z.rx,y=z.y-s.aim.y*z.ry;
@@ -154,7 +178,7 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
   c.clearRect(0,0,1600,960);c.save();c.scale(scale,scale);c.translate(-camera.x,-camera.y);c.drawImage(art.fieldPark,0,0,1536,1024);
   const actors=[...s.players.map(p=>({p,q:fieldProject(p.point)})),...s.runners.filter(r=>!r.out).map(r=>({p:r,q:fieldProject(r.point),runner:true}))].sort((a,b)=>a.q.y-b.q.y);
   for(const {p,q,runner}of actors){
-   const pose=poses.get(p.id);oval(q.x,q.y,18,5,'#153a3e35');
+   const pose=runner?liveRunnerPose(s,p):poses.get(p.id);oval(q.x,q.y,18,5,'#153a3e35');
    if(pose&&art[fieldPoseDefinition(pose).asset]){const a=fieldPoseDefinition(pose),k=art[a.asset].naturalWidth/(a.sourceWidth??1536),foot=poseGround(pose,p);sprite(art[a.asset],a.rect.map(n=>n*k),a.anchor.map(n=>n*k),[foot.x,foot.y],(a.scale??LIVE_FIELD_SCALE)/k,a.mask?.map(p=>p.map(n=>n*k)));}
    else{oval(q.x,q.y-20,14,14,runner?'#d76659':'#244d70');c.fillStyle='white';c.font='bold 12px system-ui';c.textAlign='center';c.fillText(runner?'R':p.position,q.x,q.y-16);c.textAlign='start';}
    c.fillStyle='#153a4bdc';c.font='bold 12px system-ui';c.textAlign='center';c.fillText(p.name??s.runnerNames?.[p.id]??'Runner',q.x,q.y+20);c.textAlign='start';
@@ -163,7 +187,24 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
   if(s.call&&s.showCall!==false){c.fillStyle='#153a4bed';c.fillRect(40,140,360,65);c.fillStyle='white';c.font='bold 30px system-ui';c.textAlign='center';c.fillText(s.call==='homerun'?'HOME RUN':s.airCatch?'CAUGHT · OUT':s.playType==='doubleplay'?'DOUBLE PLAY':s.playType==='tripleplay'?'TRIPLE PLAY':s.call==='out'?'OUT':s.call==='safe'?'SAFE':'TAG REQUIRED',220,184);c.textAlign='start';}
   if(s.showReviewNotice!==false){c.fillStyle='#153a4bdc';c.fillRect(440,850,720,42);c.fillStyle='white';c.font='20px system-ui';c.textAlign='center';c.fillText('Character views still in progress use named markers',800,878);c.textAlign='start';}
  }
+ function drawPitching(s){
+  c.clearRect(0,0,1600,960);c.fillStyle='#8fbf78';c.fillRect(0,0,1600,960);
+  for(let y=0;y<960;y+=100){c.fillStyle='#ffffff09';c.fillRect(0,y,1600,50);}
+  c.fillStyle='#d8b783';for(const [x,y,rx,ry]of [[800,485,400,140],[800,830,245,95]])oval(x,y,rx,ry,'#d8b783');
+  c.fillStyle='#fff8e5';c.beginPath();c.moveTo(765,485);c.lineTo(835,485);c.lineTo(835,510);c.lineTo(800,530);c.lineTo(765,510);c.closePath();c.fill();
+  const catcher=catcherPose(s.catcherId,catcherAction(s)),frame=swingFrame(s),batter=opposingBatterPose(s.batterId,s.batterHand,frame);
+  const paint=p=>{const img=p&&art[p.asset];if(!img)return false;const k=img.naturalWidth/p.sourceWidth;sprite(img,p.rect.map(n=>n*k),p.anchor.map(n=>n*k),p.world,p.scale/k);return true;};
+  const catcherDrawn=paint(catcher),batterDrawn=paint(batter);
+  c.textAlign='center';c.font='bold 24px system-ui';c.fillStyle='#173747';
+  if(!catcherDrawn)c.fillText(s.catcherName??'Catcher',800,300);
+  if(!batterDrawn){oval(s.batterHand==='R'?1080:590,350,38,38,'#cc625a');c.fillText(s.batterName,s.batterHand==='R'?1080:590,420);}
+  oval(800,815,85,85,s.teamColor??'#244d70');c.fillStyle='white';c.fillText(s.pitcherName+' · '+s.pitcherHand+'HP',800,825);c.textAlign='start';
+  const z={x:800,y:340,rx:100,ry:115};c.strokeStyle='#fff9';c.lineWidth=3;c.strokeRect(z.x-z.rx,z.y-z.ry,z.rx*2,z.ry*2);
+  const tx=z.x-s.aim.x*z.rx,ty=z.y-s.aim.y*z.ry;c.strokeStyle='white';c.beginPath();c.arc(tx,ty,32,0,Math.PI*2);c.stroke();
+  if(s.phase==='flight'&&s.pitch){const p=projectPitch(s.pitch,s.elapsed,{x:800+(s.pitcherHand==='R'?65:-65),y:740},z,true);ball(p.x,p.y,13-5*Math.min(1,p.q));}
+  if(s.phase==='result'&&['ball','strike','miss'].includes(s.pitchOutcome?.kind)&&catcherDrawn&&!catcher.containsBall){const at={x:catcher.world[0]+(catcher.glove[0]-catcher.anchor[0])*catcher.scale,y:catcher.world[1]+(catcher.glove[1]-catcher.anchor[1])*catcher.scale};ball(at.x,at.y,7);}
+ }
  function point(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*1600/r.width,y:(e.clientY-r.top)*960/r.height};}
- return {ready,prepareBatter,prepareVenue,prepareDefense,draw,drawDefense,point,get metrics(){return bank.metrics;}};
+ return {ready,prepareBatter,prepareVenue,prepareDefense,prepareOpposing,draw,drawDefense,drawPitching,point,get metrics(){return bank.metrics;}};
 }
 

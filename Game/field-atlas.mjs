@@ -22,13 +22,43 @@ export const FIELD_REVIEW_CAST={
 // Exact sheet approved by the user on October 22. Camera selection is guarded
 // separately; approval of this drawing never authorizes reflecting its hands.
 export const APPROVED_FIELD_CAST={
+ 'navy-stars-ken':{template:FIELD_TEMPLATE_R_FRONT.id,asset:'navyKenField',scale:.34},
  'navy-stars-dylan':{template:FIELD_TEMPLATE_R_FRONT.id,asset:'navyDylanField',scale:.34},
  'coral-club-ken':{template:FIELD_TEMPLATE_R_FRONT.id,asset:'coralKenField',scale:.34,poses:{throw:{...FIELD_TEMPLATE_R_FRONT.poses.throw,rect:[830,410,424,410]}}},
  'coral-club-noah':{template:FIELD_TEMPLATE_R_FRONT.id,asset:'coralNoahField',scale:.34,poses:{throw:{...FIELD_TEMPLATE_R_FRONT.poses.throw,rect:[830,410,424,410]}}}
 };
+// Appearance-only variants of the same approved front-facing movement model.
+export const APPROVED_FIELD_ASSETS={};
+for(const [id,file] of [
+ ['coral-club-dylan','coral-club-dylan-field-atlas-v1'],
+ ['coral-club-lily','coral-club-lily-field-atlas-v1'],
+ ['coral-club-theo','coral-club-theo-field-atlas-v1'],
+ ['navy-stars-noah','navy-stars-noah-field-atlas-v1'],
+ ['navy-stars-theo','navy-stars-theo-field-atlas-v1'],
+ ['navy-stars-sora','navy-stars-sora-field-atlas-v1'],
+ ['navy-stars-emma','navy-stars-emma-field-atlas-v1'],
+ ['navy-stars-ryan','navy-stars-ryan-field-atlas-v1']
+]){
+ const asset='field'+id.replaceAll('-','');
+ APPROVED_FIELD_ASSETS[asset]='assets/scene-'+file+'.png';
+ APPROVED_FIELD_CAST[id]={template:FIELD_TEMPLATE_R_FRONT.id,asset,scale:.34,
+  poses:{throw:{...FIELD_TEMPLATE_R_FRONT.poses.throw,rect:[830,410,424,410]}}};
+}
+// The new left-throwing sheet currently supplies the inspected fly-catch view.
+// Its other actions remain unavailable until clean, isolated crops are ready.
+const leftCatch={rect:[1005,0,531,1024],anchor:[1170,1000],glove:[1120,110],hand:[1435,225],
+ mask:[[1005,0],[1536,0],[1536,1024],[1080,1024],[1080,920],[1100,820],[1050,600],[1005,520]]};
+FIELD_TEMPLATES['left-throw-catch-front-v3']={id:'left-throw-catch-front-v3',throws:'L',gloveHand:'R',sourceWidth:1536,poses:{catch:leftCatch}};
+for(const [id,version]of [['coral-club-emi',3],['coral-club-emma',1],['coral-club-mia',3],['navy-stars-mia',3]]){
+ const asset='field'+id.replaceAll('-','');APPROVED_FIELD_ASSETS[asset]='assets/scene-'+id+'-field-three-v'+version+'.png';
+ APPROVED_FIELD_CAST[id]={template:'left-throw-catch-front-v3',asset,scale:.14};
+}
+APPROVED_FIELD_ASSETS.navyClaraGather='assets/scene-navy-stars-mia-field-front-gather-capfix-v2.png';
+APPROVED_FIELD_CAST['navy-stars-mia'].poses={gather:{asset:'navyClaraGather',sourceWidth:1317,rect:[0,0,1317,1194],anchor:[690,1120],glove:[665,1000],hand:[835,980],scale:.11}};
 export function approvedFieldPose(id,throwHand,action){
- const cast=APPROVED_FIELD_CAST[id],template=FIELD_TEMPLATES[cast?.template];if(!cast||template.throws!==throwHand||!template.poses[action])return null;
- return{...(cast.poses?.[action]??template.poses[action]),asset:cast.asset,sourceWidth:template.sourceWidth,scale:cast.scale,throws:template.throws,gloveHand:template.gloveHand,action};
+ const cast=APPROVED_FIELD_CAST[id],template=FIELD_TEMPLATES[cast?.template],pose=cast?.poses?.[action]??template?.poses[action];
+ if(!cast||template.throws!==throwHand||!pose)return null;
+ return{...pose,asset:pose.asset??cast.asset,sourceWidth:pose.sourceWidth??template.sourceWidth,scale:pose.scale??cast.scale,throws:template.throws,gloveHand:template.gloveHand,action};
 }
 export function fieldAtlasPose(id,throwHand,action){
  const cast=FIELD_REVIEW_CAST[id],template=FIELD_TEMPLATES[cast?.template];

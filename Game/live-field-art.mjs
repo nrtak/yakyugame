@@ -1,4 +1,5 @@
 import {approvedFieldPose,APPROVED_FIELD_CAST} from './field-atlas.mjs';
+import {CATCHER_CAST,catcherFieldPose} from './opposing-art.mjs';
 // Source coordinates are registered to the feet; images are never mirrored.
 export const LIVE_FIELD_POSES={
  kenRunA:{asset:'fielder',rect:[0,0,510,1024],anchor:[240,900],glove:[330,665]},
@@ -14,9 +15,18 @@ export function fieldProject(p){const d=1+.008982*p.y;return{x:768+11.608*p.x/d,
 export const fieldPoseDefinition=pose=>typeof pose==='string'?LIVE_FIELD_POSES[pose]:pose;
 export function poseGround(pose,p){return fieldProject(fieldPoseDefinition(pose)?.bagFoot&&p.bagContact?p.bagContact:p.point);}
 export function liveFieldPose(s,p){
+ if(CATCHER_CAST[p.id]&&p.id.startsWith(s.teamId+'-')&&p.throws==='R'){
+  const receiver=s.players.find(x=>x.id===s.throwToId);
+  if(s.throwFromId===p.id&&['transfer','throw'].includes(s.phase))return receiver?.point.x>p.point.x?catcherFieldPose(p.id,p.throws,s.phase==='throw'?'throw':'transfer'):null;
+  return s.ballOwnerId===p.id&&s.ball.y<=p.point.y+3?catcherFieldPose(p.id,p.throws,'transfer'):null;
+ }
  if(APPROVED_FIELD_CAST[p.id]&&p.id.startsWith(s.teamId+'-')){
   const pose=action=>approvedFieldPose(p.id,p.throws,action),receiver=s.players.find(x=>x.id===s.throwToId);
   if(s.airCatch&&p.id===s.fielderId&&(s.phase==='caught'||s.phase==='complete'||s.clock>=s.catchAt-.35))return pose('catch');
+  if(s.throwToId===p.id&&p.bagContact&&['throw','received','complete'].includes(s.phase)){
+   const from=s.players.find(x=>x.id===s.throwFromId),receive=pose('receive');
+   return receive&&from?.point.x<p.point.x?{...receive,anchor:[350,1235],bagFoot:true}:null;
+  }
   if(s.throwFromId===p.id&&['transfer','throw'].includes(s.phase))return receiver?.point.x>p.point.x?pose(s.phase==='transfer'?'transfer':'throw'):null;
   if(p.id===s.fielderId&&s.phase==='gather')return pose('gather');
   if(s.ballOwnerId===p.id)return pose('transfer');
@@ -44,7 +54,7 @@ export function poseLandmark(pose,point,landmark='glove'){
 }
 export function liveBallPoint(s,poses){
  const ground=fieldProject(s.ball);
- if(s.phase==='airborne'&&s.airCatch&&s.fielderId==='navy-stars-mia'){
+ if(s.phase==='airborne'&&s.airCatch&&s.fielderId==='navy-stars-mia'&&poses.get(s.fielderId)==='miaCatch'){
   const q=Math.min(1,s.clock/s.catchAt),offset=poseLandmark('miaCatch',{x:0,y:0});
   return{x:ground.x+offset.x*q**4,y:ground.y-s.ball.z*1.2+(offset.y+(s.catchHeight??6)*1.2)*q**4};
  }

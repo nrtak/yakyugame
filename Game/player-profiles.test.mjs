@@ -20,7 +20,7 @@ test('invalid and duplicate names are rejected, and returned data cannot mutate 
  const store=createProfileStore(memory(),()=> 'id');assert.throws(()=>store.create('   '));assert.throws(()=>profileName('x'.repeat(21)));assert.throws(()=>profileName('A\u200bB'));
  store.create('Alex');assert.throws(()=>store.create('aLEX'),/already in use/);assert.throws(()=>store.select('missing'));
  const snapshot=store.current;snapshot.preferences.sensitivity='1.3';assert.equal(store.current.preferences.sensitivity,'1');
- store.update({sensitivity:'oops',teamId:'unknown',assisted:'no'});assert.deepEqual(store.current.preferences,{teamId:'coral-club',homeTeamId:'navy-stars',innings:1,sensitivity:'1',assisted:true,reducedMotion:false});
+ store.update({sensitivity:'oops',teamId:'unknown',assisted:'no'});assert.deepEqual(store.current.preferences,{teamId:'coral-club',homeTeamId:'navy-stars',innings:1,sensitivity:'1',assisted:true,difficulty:'standard',reducedMotion:false});
 });
 test('blocked storage still allows play and reports session-only changes',()=>{
  const store=createProfileStore({getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}},()=> 'id');
@@ -37,6 +37,13 @@ test('finished games count once for the player who started them and survive reop
  const summary={outcome:'win',runs:3,hits:5,strikeouts:2};assert.equal(store.recordMatch(first.id,'one',summary),true);assert.equal(store.recordMatch(first.id,'one',summary),false);assert.equal(store.current.records.games,0);
  const reopen=createProfileStore(disk);reopen.select(first.id);assert.equal(reopen.current.records.games,1);assert.equal(reopen.current.records.wins,1);assert.equal(reopen.current.records.hits,5);assert.equal(reopen.recordMatch(first.id,'one',summary),false);assert.equal(reopen.recordMatch(null,'guest',summary),false);
  assert.throws(()=>reopen.recordMatch(second.id,'bad',{...summary,hits:-1}));
+});
+
+test('old match and practice receipts survive more than 64 completions and reopening',()=>{
+ const disk=memory(),store=createProfileStore(disk,()=> 'one'),p=store.create('Alex'),summary={outcome:'win',runs:1,hits:1,strikeouts:1};
+ store.recordMatch(p.id,'original',summary);store.recordPractice(p.id,'original','batting',100);
+ for(let i=0;i<100;i++){store.recordMatch(p.id,'match-'+i,summary);store.recordPractice(p.id,'practice-'+i,'pitching',i);}
+ const reopen=createProfileStore(disk);assert.equal(reopen.recordMatch(p.id,'original',summary),false);assert.equal(reopen.recordPractice(p.id,'original','batting',999),false);assert.equal(reopen.current.records.games,101);assert.equal(reopen.current.records.practice.batting,100);
 });
 test('practice records keep only the best completed score for each drill',()=>{
  const store=createProfileStore(memory(),()=> 'id'),p=store.create('Alex');store.recordPractice(p.id,'one','batting',400);store.recordPractice(p.id,'two','batting',200);store.recordPractice(p.id,'three','pitching',650);

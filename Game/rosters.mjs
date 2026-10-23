@@ -179,7 +179,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-mia",
-        "name": "Mia",
+        "name": "Clara",
         "position": "CF",
         "bats": "R",
         "throws": "L",
@@ -195,7 +195,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-ken",
-        "name": "Ken",
+        "name": "Jasper",
         "position": "SS",
         "bats": "R",
         "throws": "R",
@@ -211,7 +211,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-lily",
-        "name": "Lily",
+        "name": "Violet",
         "position": "C",
         "bats": "R",
         "throws": "R",
@@ -227,7 +227,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-dylan",
-        "name": "Dylan",
+        "name": "Felix",
         "position": "LF",
         "bats": "L",
         "throws": "R",
@@ -243,7 +243,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-noah",
-        "name": "Noah",
+        "name": "Marcus",
         "position": "3B",
         "bats": "R",
         "throws": "R",
@@ -259,7 +259,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-emma",
-        "name": "Emma",
+        "name": "Avery",
         "position": "2B",
         "bats": "R",
         "throws": "R",
@@ -275,7 +275,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-sora",
-        "name": "Sora",
+        "name": "Celeste",
         "position": "1B",
         "bats": "R",
         "throws": "R",
@@ -291,7 +291,7 @@ export const TEAMS = [
       },
       {
         "id": "navy-stars-theo",
-        "name": "Theo",
+        "name": "Elliot",
         "position": "RF",
         "bats": "R",
         "throws": "R",

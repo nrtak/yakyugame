@@ -33,7 +33,6 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
 
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
-        configuration.websiteDataStore = .nonPersistent()
         configuration.allowsInlineMediaPlayback = true
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         webView = WKWebView(frame: .zero, configuration: configuration)
@@ -73,6 +72,52 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
     @objc func pauseGame() {
         webView?.evaluateJavaScript("window.GameLifecycle?.pause();", completionHandler: nil)
     }
+
+    #if DEBUG
+    // CI drives the real interface; this path is absent from Release builds.
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        guard let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--capture-scene=") }),
+              let scene = argument.split(separator: "=").last.map(String.init),
+              ["menu", "batting", "competitions"].contains(scene) else { return }
+        pollCapture(scene: scene, attempts: 180)
+    }
+
+    private func pollCapture(scene: String, attempts: Int) {
+        guard attempts > 0 else { return }
+        let script = """
+        (() => {
+          const $ = id => document.getElementById(id);
+          if (!$('start') || $('start').disabled) return false;
+          if (!window.__captureStarted) {
+            window.__captureStarted = true;
+            if ('\(scene)' === 'batting') {
+              $('play-ball').click();
+              $('team').value = 'coral-club';
+              $('home-team').value = 'navy-stars';
+              $('start').click();
+            } else if ('\(scene)' === 'competitions') $('open-competitions').click();
+          }
+          if (!$('tutorial').hidden) $('tip-skip').click();
+          const ready = '\(scene)' === 'batting' ? $('overlay').hidden :
+            document.querySelector('.card').dataset.screen === ('\(scene)' === 'menu' ? 'home' : 'competitions');
+          if (ready && !window.__captureReady) requestAnimationFrame(() => requestAnimationFrame(() => { window.__captureReady = true; }));
+          return Boolean(ready && window.__captureReady);
+        })()
+        """
+        webView.evaluateJavaScript(script) { [weak self] result, error in
+            guard let self = self else { return }
+            if error == nil, let ready = result as? Bool, ready {
+                let file = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("capture-ready.txt")
+                try? scene.write(to: file, atomically: true, encoding: .utf8)
+            } else {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                    self?.pollCapture(scene: scene, attempts: attempts - 1)
+                }
+            }
+        }
+    }
+    #endif
 
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                  decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {

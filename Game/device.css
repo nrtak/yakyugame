@@ -10,6 +10,8 @@
 #home:after{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(0deg,#132e45c9,transparent 50%,#173b5366);pointer-events:none}
 .home-captain{position:absolute;object-fit:contain;pointer-events:none;filter:drop-shadow(0 6px 4px #112b3744)}
 .home-emma{height:94%;left:0;bottom:-5%}.home-ryan{height:67%;left:32%;bottom:3%}
+.home-captains-a3{width:66%;height:83%;left:-2%;bottom:0;object-position:center bottom}
+#home .home-backdrop{background-image:linear-gradient(90deg,#153f5200 45%,#102c4670),url('assets/menu-baseball-background-v1.png');background-position:center;background-size:cover}
 .home-heading{position:absolute;top:6%;left:5%;z-index:2;text-shadow:0 2px 6px #123445}.home-heading .eyebrow{color:#fff4d0;font-size:9px;letter-spacing:.2em}.home-heading h1{font-size:clamp(27px,7dvh,53px);line-height:1;letter-spacing:-.04em;font-style:italic;margin:7px 0}.home-heading em{color:#ff8070}.home-heading p{font-size:12px;font-weight:650}
 .home-actions{position:absolute;right:5%;bottom:9%;width:38%;display:grid;gap:7px;text-align:center;z-index:3}.home-actions button{margin:0;width:100%;min-height:44px;background:#183e60ed;border:1px solid #ffffff70;box-shadow:0 3px 9px #10273644}.home-actions .primary{background:#e36859;border:2px solid #ffd6b4;font-size:20px;min-height:54px}.home-actions .primary span{float:right}.home-actions small{font-size:9px;color:#e6eadd;margin-top:2px}.player-tag{font-size:12px;font-weight:700;overflow-wrap:anywhere;text-shadow:0 1px 4px #122d45}
 .panel{padding:18px 22px}.panel-header{display:flex;justify-content:space-between;align-items:center;gap:12px}.panel-header h1{font-size:25px}.panel-header .quiet{align-self:flex-start}.panel-intro{font-size:12px;color:#58736f}.profile-columns{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:14px}.panel h2{font-size:14px;margin:5px 0 9px}.panel label{display:block;font-weight:700}.panel input,.panel select{width:100%;font:inherit;min-height:44px;margin:5px 0 0;padding:8px 10px;border:1px solid #b9cbc5;border-radius:8px;color:#183747;background:#fff}.panel input:focus-visible{outline:3px solid #e4bc50;outline-offset:2px}.hint{font-size:11px;color:#607975;line-height:1.4}.quiet,.card .quiet{background:#e6eee6;color:#214859;border:1px solid #c8d7cd}.card .quiet:hover{background:#dce8dc}.panel #profile-list{display:grid;gap:5px;max-height:140px;overflow:auto}.panel #profile-list button{text-align:left;margin:0;background:#254c69}.panel #profile-list button[aria-pressed=true]{background:#3e725c;box-shadow:inset 4px 0 #d6e6a4}#use-guest{width:100%;margin:8px 0}#create-profile>button{margin:7px 0;width:100%}#profile-error{font-size:12px;color:#b13632;min-height:1em}.settings-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0}.settings-grid label{font-size:12px}.settings-grid small{display:block;font-size:11px;line-height:1.4;font-weight:400;margin-top:8px;color:#607975}
@@ -74,3 +76,59 @@
 @media(max-height:360px){#pitches{top:18%;gap:3px}#pitches button{padding:3px;font-size:11px}#pitches:before{padding:2px}#action,#pad{width:17%;bottom:5%}#throws{bottom:5%;gap:3px}#message{font-size:10px}#pause{top:2%;left:2%}}
 
 .home-actions{top:22%;bottom:4%;overflow-y:auto;align-content:start;padding:3px;touch-action:pan-y}.home-actions button{flex-shrink:0}#saved-summary{line-height:1.25}#practice-menu>label{display:grid;gap:6px}#practice-menu select{margin:0}#device-details{font-size:12px;padding:8px 0}#device-details summary{cursor:pointer;min-height:32px}
+
+/* A sunny launch screen; keep typography relative to the game frame. */
+#home{container-type:size;color:#24465b}
+.card[data-screen=home]{background:#d9edf0}
+#home:after{background:linear-gradient(0deg,#fff6d31f,transparent 55%,#effaff22)}
+#home .home-backdrop{inset:0;background-image:url('assets/menu-sakura-league-background-v1.png');animation:none;background-position:center;background-size:cover}
+#home .home-heading{top:5%;left:5%;text-shadow:0 2px 0 #fffdf0,0 0 12px #ffffffb3}
+#home .home-heading h1{font-size:clamp(24px,8cqh,52px);color:#254c68;margin:0;line-height:1.05}
+#home .home-heading em{color:#de6459}
+#home .home-captains-a3{width:63%;height:79%;left:-3%;bottom:0;filter:drop-shadow(0 4px 4px #507e6c33)}
+#home .home-actions{right:4%;width:39%;top:14%;bottom:3%;padding:10px;gap:5px;border:2px solid #fffdf0;border-radius:20px;background:#fffdf0ef;box-shadow:0 5px 18px #527b6d33;scrollbar-width:thin}
+#home .home-actions button{font-size:14px;line-height:1.15;color:#28516a;background:#e5f3f5;border:1px solid #b4d9de;border-radius:12px;box-shadow:0 2px 0 #9bbfc044}
+#home .home-actions .primary{background:#ed7965;color:#fff;border:2px solid #f5b69b;font-size:19px;min-height:50px}
+#home .home-actions small{color:#496b73;font-size:10px}
+#home .player-tag{font-size:12px;color:#355c69;text-shadow:none}
+@media(orientation:portrait){
+ #game:has(.card[data-screen=home]){width:100vw;height:100dvh;aspect-ratio:auto}
+ #home .home-heading{left:6%;top:4%}
+ #home .home-heading h1{font-size:clamp(28px,9cqw,45px)}
+ #home .home-captains-a3{width:100%;height:43%;left:-10%;bottom:47%}
+ #home .home-actions{left:6%;right:6%;width:auto;top:54%;bottom:3%;padding:10px;gap:6px;border-radius:18px}
+ #home .home-backdrop{background-position:39% center;animation:none}
+}
+/* Approved Sakura League illustration contains the logo and both captains. */
+#home:after{display:none}
+#home .home-heading{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+#home .home-actions{top:43%;right:7.5%;bottom:3%;width:27%;padding:3px;gap:6px;border:0;border-radius:0;background:transparent;box-shadow:none;align-content:start}
+#home .home-actions button{min-height:44px;border:2px solid #86d5ff;border-radius:12px;color:#fff;background:linear-gradient(#123e80f5,#07285ef5);box-shadow:0 3px 0 #06194bb3;font-weight:800}
+#home .home-actions button:focus-visible{outline:3px solid #fff;outline-offset:2px}
+#home .home-actions .primary{background:linear-gradient(#fff37c,#ffc936);color:#092b60;border-color:#fff2a0;min-height:48px}
+#home .player-tag,#home .home-actions small{color:#fff;text-shadow:0 1px 3px #061841;background:#082655ba;border-radius:8px;padding:3px 6px}
+@media(orientation:landscape) and (max-height:500px){
+ #home .home-actions{right:6%;width:30%;top:43%;bottom:2%;grid-template-columns:1fr 1fr;gap:5px;overflow-y:auto}
+ #home .home-actions .primary,#home .home-actions #resume-saved,#home .home-actions .player-tag,#home .home-actions small{grid-column:1/-1}
+ #home .home-actions button{font-size:12px;padding:5px;min-height:44px}
+ #home .home-actions .primary{font-size:18px;min-height:44px}
+ #home .player-tag{font-size:10px}
+ #home #home-length{display:none}
+}
+@media(orientation:portrait){
+ #home{background:#09295d}
+ #home .home-backdrop{background-size:100% auto;background-position:center top;background-repeat:no-repeat;background-color:#09295d}
+ #home .home-actions{left:6%;right:6%;width:auto;top:calc(56.3cqw + 14px);bottom:max(16px,env(safe-area-inset-bottom));padding:8px;gap:10px;grid-template-columns:1fr;background:#082451e8;border:1px solid #83c4ed66;border-radius:18px}
+ #home .home-actions button{font-size:16px;min-height:48px}
+}
+
+/* Competition and collection panels share the phone-safe scroll area. */
+/* Game controls should not become selectable text on a long press. */
+#game,#game *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#game input:not([type=range]):not([type=checkbox]):not([type=radio]),#game textarea,#game [contenteditable=true],#game [contenteditable=plaintext-only],#game [contenteditable=true] *,#game [contenteditable=plaintext-only] *{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
+.home-actions{max-height:86%;overflow-y:auto;overscroll-behavior:contain;bottom:4%;padding:3px}.competition-actions{display:flex;flex-wrap:wrap;gap:8px}.collection-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.collection-grid article{padding:12px;border-radius:10px;background:#e9efe5}.collection-grid button{width:100%;margin:6px 0 0}.collection-grid p{font-size:12px}.panel-header{position:sticky;top:0;background:#fff9e9;z-index:1;padding-bottom:6px}.panel button,.panel select,.quiet{min-height:44px!important}.card{padding-bottom:env(safe-area-inset-bottom);scroll-padding:12px}.panel{scroll-margin:12px}#derby-error{color:#a5312f}#cup-rounds p{padding:10px;background:#e9efe5;border-radius:8px}
+@media(max-width:600px){.collection-grid{grid-template-columns:1fr}.home-actions{right:3%;width:43%}.settings-grid{gap:10px}}
+/* Portrait menus need the device height, not the short landscape playing field. */
+@media(orientation:portrait){#game:has(#overlay:not([hidden])){width:100vw;height:100dvh;aspect-ratio:auto}#game:has(#overlay:not([hidden]))>canvas{position:absolute;top:50%;bottom:auto;left:0;width:100%;height:auto;transform:translateY(-50%)}}
+
+@media(orientation:landscape) and (max-height:450px){#home .home-actions{top:40%}}

@@ -1,6 +1,7 @@
 import { seededRandom, SPEEDS } from './engine.mjs';
 import { TEAMS, allPlayers, playerById } from './rosters.mjs';
 import {PITCH_TYPES,pitcherRepertoire,pitchMovement} from './pitch-types.mjs';
+import {cpuDifficulty} from './cpu-difficulty.mjs';
 
 export function createMatch({innings=3,seed=211,homeTeamId='navy-stars'}={}) {
   if(!Number.isInteger(innings)||innings<1||innings>9)throw Error('Choose 1–9 regulation innings');
@@ -100,10 +101,11 @@ export function applyOutcome(match,outcome){
     case 'strike':
     case 'miss':m.strikes++;event.title=outcome.kind==='miss'?'Swing and miss':'Called strike';if(m.strikes===3){m.outs++;stats.k++;stats.ab++;event.title=`${batter.name} strikes out`;event.kind='strikeout';event.atBatEnded=true;}break;
     case 'foul':m.strikes=Math.min(2,m.strikes+1);event.title='Foul ball';break;
-    case 'single':case 'double':case 'triple':case 'homerun':{
-      const n={single:1,double:2,triple:3,homerun:4}[outcome.kind];
+    case 'groundruledouble':case 'single':case 'double':case 'triple':case 'homerun':{
+      if(outcome.kind==='groundruledouble'){event.kind='double';event.groundRule=true;}
+      const n={single:1,double:2,triple:3,homerun:4}[event.kind];
       advanceOnHit(m,batter,n,event);stats.h++;stats.ab++;m.hits[team]++;event.atBatEnded=true;
-      event.title=outcome.kind==='homerun'?'Home run!':`${batter.name} hits a ${outcome.kind}`;break;
+      event.title=event.groundRule?'Ground-rule double':outcome.kind==='homerun'?'Home run!':`${batter.name} hits a ${outcome.kind}`;break;
     }
     case 'groundout':case 'flyout':m.outs++;stats.ab++;event.atBatEnded=true;event.title=outcome.kind==='flyout'?`${batter.name} flies out`:`${batter.name} grounds out`;break;
     default:throw new Error(`Unknown outcome ${outcome.kind}`);
@@ -118,7 +120,8 @@ export function applyOutcome(match,outcome){
   return {match:m,event};
 }
 
-export function makeMatchPitch(m,{speed='standard',kind=null,aim=null,releaseError=0}={}){
+export function makeMatchPitch(m,{speed=null,kind=null,aim=null,releaseError=0,difficulty='standard'}={}){
+  const skill=cpuDifficulty(difficulty);speed??=skill.pitchSpeed;
   const rand=seededRandom(m.seed+m.pitchNumber*179+37);
   const pitcher=currentPitcher(m),repertoire=pitcherRepertoire(pitcher.id),choices=['fast',...repertoire];
   const pitchKind=kind??choices[Math.floor(rand()*choices.length)];
@@ -148,16 +151,17 @@ export function contactOutcome(m,contact){
     detail:kind==='groundout'?'The infield makes the play at first. Other runners hold.':kind==='flyout'?'Caught in the field. Runners hold.':kind==='homerun'?'Over the fence! Everyone comes home.':`Safe! Runners advance ${kind==='single'?'one base':kind==='double'?'two bases':'three bases'}.`};
 }
 
-export function cpuBat(m,pitch){
+export function cpuBat(m,pitch,{difficulty='standard'}={}){
+  const skill=cpuDifficulty(difficulty);
   const rand=seededRandom(m.seed+m.pitchNumber*811+149),batter=currentBatter(m);
-  const swings=rand()<(pitch.inZone?.94:.21);
+  const swings=rand()<(pitch.inZone?.94:skill.chase);
   if(!swings)return {kind:pitch.inZone?'strike':'ball',detail:pitch.inZone?'The batter watches it cross the zone.':'The batter lets it go outside.'};
   const edge=Math.max(Math.abs(pitch.x),Math.abs(pitch.y));
   const variation=m.lastPitch&&m.lastPitch!==pitch.kind?.05:0;
-  if(rand()<.20+Math.max(0,edge-.55)*.17+variation+(pitch.inZone?0:.15))return {kind:'miss',detail:'A swing through the pitch.'};
+  if(rand()<.20+skill.missAdjustment+Math.max(0,edge-.55)*.17+variation+(pitch.inZone?0:.15))return {kind:'miss',detail:'A swing through the pitch.'};
   if(rand()<.23)return {kind:'foul',detail:'Fouled away. Keep changing the pitch location.'};
   const repeated=m.lastPitch===pitch.kind?.08:0;
-  const quality=Math.max(.1,Math.min(.97,.24+rand()*.55+(batter.contact-75)*.002+pitch.releaseError*.10+repeated-Math.max(0,edge-.4)*.12));
+  const quality=Math.max(.1,Math.min(.97,.24+skill.qualityAdjustment+rand()*.55+(batter.contact-75)*.002+pitch.releaseError*.10+repeated-Math.max(0,edge-.4)*.12));
   return contactOutcome(m,{quality,timingMs:(rand()-.5)*140});
 }
 
