@@ -28,6 +28,8 @@ jobs:
           xcodebuild -version
           xcodebuild -project YakyuGame.xcodeproj -scheme YakyuGame -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Capture iPhone simulator screens
+        if: github.event_name != 'workflow_dispatch'
+        timeout-minutes: 5
         shell: bash
         run: |
           set -euo pipefail
@@ -57,7 +59,7 @@ jobs:
             xcrun simctl io "$device_id" screenshot "build/screenshots/$scene.png"
           done
       - uses: actions/upload-artifact@v6
-        if: always()
+        if: always() && github.event_name != 'workflow_dispatch'
         with:
           name: YakyuGame-screenshots
           path: build/screenshots/*.png
