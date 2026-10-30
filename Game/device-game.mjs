@@ -28,6 +28,7 @@ export class DeviceGame {
  releasePitch(){if(this.paused||this.phase!=='pitch-ready')return false;this.pitch=makeMatchPitch(this.match,{kind:this.pitchKind,aim:this.aim});this.cpu=cpuBat(this.match,this.pitch,{difficulty:this.difficulty});this.clock=0;this.phase='windup';return true;}
  swing(){if(this.paused||!this.userBatting||this.phase!=='flight'||this.swingAt!==null)return false;this.swingAt=this.elapsed;this.contact=judgeSwing(this.pitch,this.aim,this.elapsed+SWING_LEAD,{forgiving:this.assisted});return true;}
  throwTo(base){return !this.paused&&this.phase==='field'&&!this.userBatting?this.inning.throwTo(base):false;}
+ tagRunner(id){return !this.paused&&this.phase==='field'&&!this.userBatting?this.inning.tagRunner(id):false;}
  finishPitch(outcome){this.event=this.inning.pitchResult(outcome);this.clock=0;this.phase='review';}
  beginFair(contact){
   const verticalOffset=this.userBatting?this.aim.y-this.pitch.y:Math.sin(this.match.pitchNumber*2.37)*.5;
@@ -40,12 +41,17 @@ export class DeviceGame {
   else if(this.phase==='flight'){
    this.elapsed+=dt;
    if(this.userBatting){
-    if(this.contact&&this.elapsed>=this.swingAt+SWING_LEAD&&this.contact.kind==='hit'){this.phase='contact';this.clock=0;}
+    if(this.contact&&this.elapsed>=this.swingAt+SWING_LEAD&&this.contact.kind==='hit'){this.elapsed=this.swingAt+SWING_LEAD;this.phase='contact';this.clock=0;}
     else if(this.elapsed>=Math.max(this.pitch.duration+.2,this.swingAt===null?0:this.swingAt+SWING_LEAD)){this.finishPitch(this.contact??judgeTake(this.pitch));}
-   }else if(this.elapsed>=this.pitch.duration+.05){if(['single','double','triple','homerun','groundout','flyout'].includes(this.cpu.kind)){this.contact=this.cpu;this.phase='contact';this.clock=0;}else this.finishPitch(this.cpu);}
+   }else{
+    const fair=['single','double','triple','homerun','groundout','flyout'].includes(this.cpu.kind);
+    if(fair&&this.elapsed>=this.pitch.duration){this.elapsed=this.pitch.duration;this.contact=this.cpu;this.phase='contact';this.clock=0;}
+    else if(!fair&&this.elapsed>=this.pitch.duration+.05)this.finishPitch(this.cpu);
+   }
   }else if(this.phase==='contact'&&this.clock>=.16)this.beginFair(this.contact);
   else if(this.phase==='field'){
-   if(this.userBatting&&this.defense?.canThrow){this.autoClock+=dt;if(this.autoClock>=.12){this.inning.throwTo(this.defense.recommendation);this.autoClock=0;}}else this.autoClock=0;
+   if(this.userBatting&&this.defense?.canTag)this.inning.tagRunner();
+   if(this.userBatting&&this.defense?.canThrow&&this.defense.recommendation){this.autoClock+=dt;if(this.autoClock>=.12){this.inning.throwTo(this.defense.recommendation);this.autoClock=0;}}else this.autoClock=0;
    const event=this.inning.step(dt);if(event){this.event=event;this.clock=0;this.phase='review';}
   }
  }

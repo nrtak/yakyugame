@@ -10,7 +10,7 @@ export function tipForGame(game){
 export function defenseFeedback(s){
  if(!s)return{possession:'',call:'',tone:''};
  const owner=s.players?.find(p=>p.id===s.ballOwnerId),base={'1B':'1st','2B':'2nd','3B':'3rd',HOME:'home'}[s.target];
- const possession=s.possession!=='free'&&owner?owner.name+' · '+(s.possession==='throwing-hand'?'Transferring ball':s.phase==='gather'?'Securing ball':'Ball in glove'):s.phase==='throw'?'Ball in flight'+(base?' → '+base:''):'Ball in play';
- const call=s.call==='out'?'OUT':s.call==='safe'?'SAFE':s.call==='no-force'?'NO FORCE · TAG REQUIRED':s.call==='homerun'?'HOME RUN':'';
+ const possession=s.possession!=='free'&&owner?owner.name+' · '+(s.phase==='tag-ready'?'Ready to tag':s.phase==='tag'?'Tag made':s.possession==='throwing-hand'?'Transferring ball':s.phase==='gather'?'Securing ball':'Ball in glove'):s.phase==='throw'?'Ball in flight'+(base?' → '+base:''):'Ball in play';
+ const call=s.call==='out'?(s.callKind==='tag'?'TAG OUT':'OUT'):s.call==='safe'?'SAFE':s.call==='no-force'?'NO FORCE · TAG REQUIRED':s.call==='homerun'?'HOME RUN':'';
  return{possession,call,tone:s.call==='out'?'out':s.call==='safe'?'safe':'neutral'};
 }

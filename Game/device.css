@@ -132,3 +132,31 @@
 @media(orientation:portrait){#game:has(#overlay:not([hidden])){width:100vw;height:100dvh;aspect-ratio:auto}#game:has(#overlay:not([hidden]))>canvas{position:absolute;top:50%;bottom:auto;left:0;width:100%;height:auto;transform:translateY(-50%)}}
 
 @media(orientation:landscape) and (max-height:450px){#home .home-actions{top:40%}}
+/* Keep the plate clear in the behind-mound defensive view. */
+#game[data-play-mode=pitch] #pitches{left:3%;right:auto;top:25%;width:32%}
+#game[data-play-mode=pitch] #pad{bottom:3%}
+#game[data-play-mode=pitch] #message{left:44%;right:24%;bottom:16%}
+#game[data-play-mode=field] #message{bottom:2%}
+#game[data-play-mode=field] #control-hint{display:none}
+#game[data-play-mode=pitch] #pitches{max-height:41%;overflow-y:auto;touch-action:pan-y;overscroll-behavior:contain}
+#game[data-play-mode=pitch] #pitches:before{display:none}
+/* Compact pitching controls leave the foreground delivery and plate visible. */
+#pitch-picker{position:absolute;right:3%;bottom:17%;width:28%;z-index:3;background:#163d5bef;font-size:clamp(11px,2.8dvh,21px)}
+#game[data-play-mode=pitch] #pitches{left:auto;right:3%;top:auto;bottom:30%;width:43%;max-height:58%;z-index:4;background:#123850f2;border:1px solid #d9f2ff80;border-radius:10px;padding:7px}
+#game[data-play-mode=pitch] #action{width:28%;aspect-ratio:auto;min-height:44px;bottom:4%;border-radius:12px;padding:5px}
+#game[data-play-mode=pitch] #pad{left:1%;width:14%;bottom:4%}
+#game[data-play-mode=pitch] #hud{left:auto;right:3%;width:35%;top:2%}
+#game[data-play-mode=pitch] #hud>b,#game[data-play-mode=pitch] #hud>span{padding:3px 2px}
+#game[data-play-mode=pitch] #phase-label{left:16%;right:auto;top:3%;max-width:20%;font-size:clamp(10px,2.5dvh,19px)}
+#game[data-play-mode=pitch] #control-hint{display:none}
+#game[data-play-mode=pitch] #message{left:44%;right:34%;bottom:4%}
+
+/* Keep the full right-hand release visible beside the scoreboard. */
+#game[data-play-mode=pitch] #hud{width:29%}
+#game[data-play-mode=pitch] #pad{left:0;width:10%;min-width:44px}
+/* Fielding keeps the center-field action clear; throw choices appear only
+   while a player actually has a legal throw, leaving runners visible in flight. */
+#game[data-play-mode=field] #hud{left:auto;right:3%;width:29%}
+#game[data-play-mode=field] #hud>b,#game[data-play-mode=field] #hud>span{padding:3px 2px}
+#fielding-menu>label{display:grid;gap:6px}#fielding-team{margin:0}#fielding-drill-results{text-align:left;padding-left:24px}#fielding-drill-results li{margin:8px 0}#fielding-error{color:#a53132}
+#tag-runner{position:absolute;left:3%;bottom:14%;width:28%;min-height:44px;z-index:3;background:#b7811c;border:2px solid #ffedb0;font-size:clamp(12px,3dvh,22px)}

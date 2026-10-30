@@ -43,3 +43,41 @@ test('an obsolete image finishing late cannot repopulate the retained image bank
  const old=bank.load(['old']),current=bank.load(['current']);bank.retain(['current']);images[1].onload();images[0].onload();await Promise.all([old,current]);assert.deepEqual(bank.metrics.loadedKeys,['current']);assert.equal(bank.metrics.decodedBytes,80000);
  const retry=bank.load(['old']);assert.equal(images.length,3);images[2].onload();await retry;assert.equal(bank.art.old,images[2]);
 });
+
+import {PITCHING_GEOMETRY,pitchingRelease,pitchingPosition,pitchingActorPose,defensiveFieldCamera} from './scene-render.mjs';
+import {GroundDefense} from './defense-play.mjs';
+import {FlightDefense} from './flight-defense.mjs';
+import {fieldProject,liveFieldPose,liveBallPoint} from './live-field-art.mjs';
+import {opposingBatterPose} from './opposing-art.mjs';
+test('behind-mound pitching keeps the physical hand and reverses only target projection',()=>{
+ const z=PITCHING_GEOMETRY.zone;
+ for(const hand of ['R','L'])for(const x of [-1,0,1]){
+  const p={duration:1.25,x,y:.4,bend:0},a=pitchingPosition(p,0,hand),b=pitchingPosition(p,p.duration,hand);
+  assert.equal(a.x,pitchingRelease(hand).x);assert.equal(a.y,pitchingRelease(hand).y);
+  assert.equal(b.x,z.x-x*z.rx);assert.equal(b.y,z.y-.4*z.ry);assert.ok(b.r<a.r);
+  assert.ok(Number.isFinite(a.y));assert.ok(a.x<z.x);
+ }
+ // A raised foreground throwing hand can project above the distant zone.
+ // The actual hand landmark, rather than a fixed side/height, is authoritative.
+ assert.ok(pitchingRelease('R').x>PITCHING_GEOMETRY.pitcher.x);
+ const original=opposingBatterPose('coral-club-emma','R',0),copy=structuredClone(original);
+ assert.equal(pitchingActorPose(original),null);assert.deepEqual(original,copy);
+});
+test('raised live camera keeps the ball, active fielders and runners visible through grounders and flies',()=>{
+ for(const teamId of ['coral-club','navy-stars'])for(const kind of ['ground','fly']){
+  const options={teamId,batterId:teamId==='coral-club'?'navy-stars-ryan':'coral-club-emma',bases:[null,null,null],outs:0};
+  const play=kind==='ground'?new GroundDefense({...options,target:{x:-40,y:115}}):new FlightDefense({...options,contact:{quality:.6,launchAngle:40,direction:.55}});
+  let frames=0;
+  while(!play.finished&&frames++<800){
+   const state=play.state,poses=new Map(state.players.map(p=>[p.id,liveFieldPose(state,p)]).filter(([,p])=>p)),ball=liveBallPoint(state,poses),camera=defensiveFieldCamera(state,ball);
+   assert.ok(camera.width>=1150);assert.equal(camera.height,camera.width*.6);
+   const ids=new Set([state.fielderId,state.ballOwnerId,state.throwFromId,state.throwToId]);
+   for(const p of [ball,...state.players.filter(p=>ids.has(p.id)).map(p=>fieldProject(p.point)),...state.runners.filter(r=>!r.out).map(r=>fieldProject(r.point))]){
+    const x=(p.x-camera.x)*1600/camera.width,y=(p.y-camera.y)*960/camera.height;
+    assert.ok(x>=0&&x<=1600&&y>=0&&y<=960,JSON.stringify({teamId,kind,phase:state.phase,x,y}));
+   }
+   if(play.canThrow)play.throwTo('1B');play.step(.05);
+  }
+  assert.ok(play.finished);
+ }
+});

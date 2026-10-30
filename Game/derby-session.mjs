@@ -9,13 +9,14 @@ export class DerbySession{
  startTurn(){if(this.paused||this.phase!=='turn-ready')return false;this.phase='ready';this.clock=0;return true;}
  get player(){return this.state.config.players.find(p=>p.id===(this.pitch?.batterId??this.state.winners[0]));}
  get pitch(){return derbyPitch(this.state);}
+ get presentation(){return this.phase==='result'?{...this.displayTurn,player:this.displayPlayer}:{player:this.player,stage:this.state.stage,attempt:this.state.attempt+1,limit:this.state.stage==='tiebreak'?this.state.config.tieBreakPitches:this.state.config.pitchesPerTurn,homeRuns:this.state.scores[this.player.id]??0};}
  setAim(x,y){if(!this.paused&&this.swingAt===null&&['ready','windup','flight'].includes(this.phase)&&[x,y].every(Number.isFinite))this.aim={x:Math.max(-1.7,Math.min(1.7,x)),y:Math.max(-1.4,Math.min(1.4,y))};}
  swing(){if(this.paused||this.phase!=='flight'||this.swingAt!==null)return false;this.swingAt=this.elapsed;this.contact=judgeSwing(this.pitch,this.aim,this.elapsed+SWING_LEAD);return true;}
  step(dt){if(!Number.isFinite(dt)||dt<0)throw Error('Invalid Derby time');if(this.paused||['summary','turn-ready'].includes(this.phase))return;dt=Math.min(.05,dt);this.clock+=dt;
   if(this.phase==='ready'&&this.clock>=.85){this.phase='windup';this.clock=0;}
   else if(this.phase==='windup'&&this.clock>=.72){this.phase='flight';this.clock=0;this.elapsed=0;}
   else if(this.phase==='flight'){this.elapsed+=dt;if(this.elapsed>=Math.max(this.pitch.duration+.2,this.swingAt===null?0:this.swingAt+SWING_LEAD)){
-   this.displayPlayer=this.player;this.displayPitch=this.pitch;const state=applyDerbySwing(this.state,{pitchId:this.pitch.id,swing:this.swingAt===null?null:{...this.aim,impactTime:this.swingAt+SWING_LEAD}});this.result=state.log.at(-1);this.state=state;this.phase='result';this.clock=0;
+   const turn=this.presentation;this.displayPlayer=this.player;this.displayPitch=this.pitch;const state=applyDerbySwing(this.state,{pitchId:this.pitch.id,swing:this.swingAt===null?null:{...this.aim,impactTime:this.swingAt+SWING_LEAD}});this.result=state.log.at(-1);this.displayTurn={stage:turn.stage,attempt:turn.attempt,limit:turn.limit,homeRuns:turn.homeRuns+(this.result.homeRun?1:0)};this.state=state;this.phase='result';this.clock=0;
   }}else if(this.phase==='result'&&this.clock>=1.7){this.phase=this.state.over?'summary':this.pitch.batterId!==this.displayPlayer.id||this.state.attempt===0?'turn-ready':'ready';this.clock=0;this.elapsed=0;this.swingAt=null;this.contact=null;this.aim={x:0,y:0};}
  }
  sceneState(){const result=this.phase==='result',p=result?this.displayPlayer:this.player;return{phase:this.phase,clock:this.clock,elapsed:this.elapsed,aim:this.aim,swingAt:this.swingAt,pitch:result?this.displayPitch:this.pitch,result:this.contact,batterId:p.id,batterName:p.name,batterHand:p.bats,pitcherId:'navy-stars-ryan',homeTeamId:'navy-stars',venue:'Navy Stadium',liveDefense:true};}

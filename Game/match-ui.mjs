@@ -1,18 +1,20 @@
 import {SWING_LEAD,judgeSwing} from './engine.mjs';
-import {createMatch,applyOutcome,makeMatchPitch,cpuBat,contactOutcome,currentBatter,currentPitcher,halfLabel,resultHeadline,playerOfGame,TEAMS} from './match-engine.mjs';
-import {createRenderer} from './match-render.mjs';
+import {createMatch,applyOutcome,makeMatchPitch,cpuBat,contactOutcome,currentBatter,currentPitcher,halfLabel,resultHeadline,playerOfGame,TEAMS,GROUND_PLAY,throwAtFirst} from './match-engine.mjs';
+import {createRenderer,playDuration} from './match-render.mjs';
 
 const $=id=>document.getElementById(id),canvas=$('field'),renderer=createRenderer(canvas);
-let match=createMatch(),phase='intro',clock=0,elapsed=0,last=0,pitch=null,swing=null,aim={x:0,y:0};
+const TEST_INNINGS=1;
+let match=createMatch({innings:TEST_INNINGS}),phase='intro',clock=0,elapsed=0,last=0,pitch=null,swing=null,aim={x:0,y:0};
 let pending=null,play=null,event=null,playTime=0,chosenPitch='fast',releasePosition=0,cpuDecision=null;
 let previousPhase='ready',rosterPhase='intro',returnPanel=null,drag=null,seed=211,audio=null,demo=false;
+let assetsReady=!renderer.ready;
 const activePhases=['ready','meter','windup','flight','play','call','review'];
 const panels=['intro-panel','break-panel','pause-panel','final-panel','roster-panel'];
 const contactKinds=['single','double','triple','homerun','groundout','flyout'];
 
 function panel(id){$('modal-layer').hidden=!id;panels.forEach(p=>$(p).hidden=p!==id);}
-function setAction(word,enabled){$('action-word').textContent=word;$('action').disabled=!enabled;$('action-key').textContent=word==='RELEASE'?'TAP NOW':'SPACE';}
-function syncAim(){$('aim-x').value=Math.round(aim.x*100);$('aim-y').value=Math.round(aim.y*100);}
+function setAction(word,enabled){$('action-word').textContent=word;$('action').disabled=!enabled;$('action-key').textContent=word==='RELEASE'?'TAP NOW':'TAP';}
+function syncAim(){$('aim-x').value=Math.round(aim.x*100);$('aim-y').value=Math.round(aim.y*100);$('aim-thumb').style.transform=`translate(${aim.x*8}px,${-aim.y*8}px)`;}
 function sound(kind){
   if(!$('sound').checked)return;
   try{
@@ -26,8 +28,10 @@ function sound(kind){
 function updateHUD(){
   $('away-score').textContent=match.score[0];$('home-score').textContent=match.score[1];
   $('inning').textContent=match.over?'FINAL':`${match.half===0?'TOP':'BOT'} ${match.inning}`;
-  $('half-role').textContent=match.over?'3 INNINGS':match.half===0?'YOU BAT':'YOU PITCH';
+  $('half-role').textContent=match.over?`${match.innings} INNING${match.innings===1?'':'S'}`:match.half===0?'YOU BAT':'YOU PITCH';
   $('balls').textContent=match.balls;$('strikes').textContent=match.strikes;$('outs').textContent=match.outs;
+  for(const [id,value]of [['balls',match.balls],['strikes',match.strikes],['outs',match.outs]]){$(id).dataset.value=String(value);$(id).setAttribute('aria-label',value+' '+id);}
+  for(const [name,i]of [['first',0],['second',1],['third',2]])$('base-map').dataset[name]=String(Boolean(match.bases[i]));
   // Display third, second, first as a compact companion to the field's runners.
   $('base-state').textContent=[2,1,0].map(i=>match.bases[i]?'◆':'◇').join(' ');
   $('base-state').setAttribute('aria-label',match.bases.some(Boolean)?`Runners on ${match.bases.map((id,i)=>id?['first','second','third'][i]:null).filter(Boolean).join(', ')}`:'Bases empty');
@@ -39,20 +43,25 @@ function updateHUD(){
 function status(title,detail){$('status').textContent=title;$('detail').textContent=detail;}
 function controls(){
   const defense=match.half===1;
+  $('action').dataset.mode=phase==='play'?'field':defense?'pitch':'bat';
   $('pitch-options').hidden=!(defense&&['ready','meter'].includes(phase));
   $('release-wrap').hidden=phase!=='meter';
   $('pause').disabled=!activePhases.includes(phase);
   $('next').disabled=phase!=='review';
   $('next').textContent=event?.atBatEnded?'Next batter →':'Next pitch →';
-  if(demo)setAction('DEMO',false);
+  if(phase==='play')setAction(play?.throwDelay===null?'THROW 1B':'FIELDING',play?.throwDelay===null);
+  else if(demo)setAction('DEMO',false);
   else if(phase==='ready'&&defense)setAction('PITCH',true);
   else if(phase==='meter')setAction('RELEASE',true);
   else if(phase==='flight'&&!defense)setAction('SWING',!swing);
   else setAction(defense?'PITCH':'SWING',false);
-  $('field-hint').textContent=demo?'Demo game · both teams play automatically':phase==='play'?'Your teammates handle fielding and running':defense?'Aim · choose a pitch · release in the green':'Drag to aim · Space or tap to swing';
+  $('field-hint').textContent=demo?'Demo game · both teams play automatically':phase==='play'?(play?.throwDelay===null?'Tap THROW 1B to queue the throw. Teammates field and run.':'Your teammates handle fielding and running'):defense?'Aim · choose a pitch · release in the green':'Drag to aim · Space or tap to swing';
+  $('play-feedback').hidden=!['review','play'].includes(phase);
+  $('play-feedback').textContent=phase==='review'?event?.detail??'':play?.throwDelay===null?'Tap THROW 1B now. An early tap queues the throw.':play?.throwDelay!==undefined?'Throw queued · watch first base':'Follow the ball';
 }
 function advance(){
   if(match.over)return;
+  drag=null;
   panel(null);pending=null;play=null;event=null;swing=null;cpuDecision=null;elapsed=0;clock=0;playTime=0;$('callout').textContent='';
   if(match.half===0){pitch=makeMatchPitch(match,{speed:$('speed').value});phase='windup';status(`${currentBatter(match).name} is at the plate`,`${match.balls} balls · ${match.strikes} strikes · ${match.outs} out${match.outs===1?'':'s'}`);}
   else{phase='ready';pitch=null;status(`Pitch to ${currentBatter(match).name}`,`Drag the target, choose a pitch, then tap Pitch and release in the green.`);}
@@ -60,8 +69,9 @@ function advance(){
   updateHUD();controls();canvas.focus({preventScroll:true});
 }
 function newGame(isDemo=false){
+  if(!assetsReady)return;
   demo=isDemo;
-  match=createMatch({seed:seed++});aim={x:0,y:0};syncAim();chosenPitch='fast';
+  match=createMatch({innings:TEST_INNINGS,seed:seed++});aim={x:0,y:0};syncAim();chosenPitch='fast';
   document.querySelectorAll('[data-pitch]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pitch===chosenPitch)));
   advance();sound('start');
 }
@@ -74,25 +84,37 @@ function startPitch(){
 }
 function action(){
   if(demo)return;
+  if(phase==='play'&&play?.throwDelay===null){completeThrow();return;}
   if(phase==='ready'&&match.half===1){phase='meter';clock=0;releasePosition=0;controls();status('Find the green center','Tap Release as the marker crosses the middle.');return;}
   if(phase==='meter'){startPitch();return;}
   if(phase==='flight'&&match.half===0&&!swing){
     swing={inputTime:elapsed,impactTime:elapsed+SWING_LEAD,aim:{...aim}};
-    const contact=judgeSwing(pitch,swing.aim,swing.impactTime);
+    const contact=judgeSwing(pitch,swing.aim,swing.impactTime,{forgiving:$('forgiving').checked});
     swing.outcome=contact.kind==='hit'?contactOutcome(match,contact):{kind:contact.kind,detail:contact.detail};
     swing.feedback=contact;controls();
   }
 }
+function completeThrow(){
+  play.throwDelay=Math.max(0,Math.min(GROUND_PLAY.maxDelay,playTime-GROUND_PLAY.contactHold-GROUND_PLAY.arrival-GROUND_PLAY.transfer));
+  pending=applyOutcome(match,throwAtFirst(play,play.throwDelay));event=pending.event;
+  controls();
+}
 function finishPitch(outcome){
   play={...outcome,pitchKind:pitch.kind};pending=applyOutcome(match,play);event=pending.event;playTime=0;clock=0;
-  $('callout').textContent=event.title;
+  if(play.kind==='groundout'&&match.half===1&&!match.bases.some(Boolean)&&!demo&&$('manual-throws').checked)play.throwDelay=null;
+  const inPlay=contactKinds.includes(play.kind);
+  $('callout').textContent=inPlay?'Ball in play':event.title;
   const timing=swing?.feedback?.timingMs;
   const timingText=typeof timing==='number'?` · ${Math.round(Math.abs(timing))} ms ${timing<0?'early':'late'}`:'';
-  status(event.title,`${event.detail}${timingText}${event.runs?` · ${event.runs} run${event.runs===1?'':'s'} scored`:''}`);
+  status(inPlay?'Ball in play':event.title,inPlay?`Follow the ball${timingText}`:`${event.detail}${timingText}`);
   phase=contactKinds.includes(play.kind)||event.kind==='walk'?'play':'call';
-  sound(play.kind==='homerun'?'homerun':['single','double','triple'].includes(play.kind)?'hit':['groundout','flyout','strikeout'].includes(event.kind)?'out':'pitch');controls();
+  sound(inPlay?'hit':event.kind==='strikeout'?'out':'pitch');controls();
 }
 function commitPlay(){
+  $('callout').textContent=event.title;
+  status(event.title,`${event.detail}${event.runs?` · ${event.runs} run${event.runs===1?'':'s'} scored`:''}`);
+  if(play.kind==='homerun')sound('homerun');
+  else if(['groundout','flyout'].includes(event.kind))sound('out');
   match=pending.match;updateHUD();
   if(match.over){showFinal();return;}
   if(event.halfEnded){
@@ -115,7 +137,7 @@ function lineScore(){
 function showFinal(){
   phase='final';panel('final-panel');$('callout').textContent='';
   $('final-title').textContent=resultHeadline(match);
-  $('captain-reaction').textContent=match.winner===0?'Maya: “We backed each other up. That’s our game!”':match.winner===1?'Maya: “Good game, Kai. We’ll be ready for the rematch.”':'Maya: “Even after three innings? We’ll settle it next time!”';
+  $('captain-reaction').textContent=match.winner===0?'Emma: “We backed each other up. That’s our game!”':match.winner===1?'Emma: “Good game, Ryan. We’ll be ready for the rematch.”':'Emma: “Even after that inning? We’ll settle it next time!”';
   lineScore();
   const star=playerOfGame(match),s=match.stats[star.id],strong=document.createElement('strong'),detail=document.createElement('span');
   strong.textContent=(match.hits[0]+match.hits[1]===0)?'A pitchers’ afternoon':`Standout · ${star.name}`;
@@ -131,9 +153,9 @@ function openRoster(boxScore=false){
     const section=document.createElement('section');section.className='roster-team';
     const title=document.createElement('h3');title.textContent=team.name;const desc=document.createElement('p');desc.textContent=team.motto;section.append(title,desc);
     const table=document.createElement('table');table.className='roster-table';const header=document.createElement('tr');
-    (boxScore?['#','PLAYER','POS','AB','H','R','RBI','BB']:['#','PLAYER','POS','CON','PWR','SPD']).forEach(t=>header.append(makeCell('th',t)));table.append(header);
+    (boxScore?['PLAYER','POS','AB','H','R','RBI','BB']:['PLAYER','POS','BATS','THROWS']).forEach(t=>header.append(makeCell('th',t)));table.append(header);
     team.players.forEach(p=>{const row=document.createElement('tr');if(p.captain)row.className='captain';
-      const s=match.stats[p.id],values=boxScore?[p.number,p.name+(p.captain?' ★':''),p.position,s.ab,s.h,s.r,s.rbi,s.bb]:[p.number,p.name+(p.captain?' ★':''),p.position,p.contact,p.power,p.speed];
+      const s=match.stats[p.id],values=boxScore?[p.name+(p.captain?' ★':''),p.position,s.ab,s.h,s.r,s.rbi,s.bb]:[p.name+(p.captain?' ★':''),p.position,p.bats,p.throws];
       values.forEach(v=>row.append(makeCell('td',v)));table.append(row);
     });section.append(table);grid.append(section);
   });$('roster-content').replaceChildren(grid);panel('roster-panel');controls();$('roster-close').focus({preventScroll:true});
@@ -141,12 +163,14 @@ function openRoster(boxScore=false){
 function closeRoster(){phase=rosterPhase;panel(returnPanel);controls();last=performance.now();if(activePhases.includes(phase))canvas.focus({preventScroll:true});else if(phase==='paused')$('resume').focus({preventScroll:true});else if(phase==='intro')$('start').focus({preventScroll:true});}
 function pause(){
   if(!activePhases.includes(phase))return;
+  drag=null;
   previousPhase=phase;phase='paused';panel('pause-panel');controls();$('resume').focus({preventScroll:true});
 }
 function resume(){if(phase!=='paused')return;phase=previousPhase;panel(null);controls();last=performance.now();canvas.focus({preventScroll:true});}
 function setup(){
-  match=createMatch({seed});phase='intro';demo=false;aim={x:0,y:0};syncAim();pitch=null;swing=null;play=null;event=null;pending=null;
-  panel('intro-panel');$('callout').textContent='';status('Maya and Kai are ready.','Two teams, nine players each, one community ballpark.');updateHUD();controls();
+  drag=null;
+  match=createMatch({innings:TEST_INNINGS,seed});phase='intro';demo=false;aim={x:0,y:0};syncAim();pitch=null;swing=null;play=null;event=null;pending=null;
+  panel('intro-panel');$('callout').textContent='';status('Emma and Ryan are ready.','Two teams, nine players each, one community ballpark.');updateHUD();controls();
 }
 function canAim(){return !demo&&!swing&&(['ready','meter'].includes(phase)||(['windup','flight'].includes(phase)&&match.half===0));}
 canvas.addEventListener('pointerdown',e=>{
@@ -175,10 +199,10 @@ document.querySelectorAll('[data-pitch]').forEach(button=>button.addEventListene
   document.querySelectorAll('[data-pitch]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
 }));
 $('aim-toggle').addEventListener('click',()=>{const open=$('aim-controls').hidden;$('aim-controls').hidden=!open;$('aim-toggle').setAttribute('aria-expanded',String(open));});
-for(const axis of ['x','y'])$('aim-'+axis).addEventListener('input',e=>{if(canAim())aim[axis]=Number(e.target.value)/100;});
+for(const axis of ['x','y'])$('aim-'+axis).addEventListener('input',e=>{if(canAim()){aim[axis]=Number(e.target.value)/100;syncAim();}});
 document.addEventListener('keydown',e=>{
   if(['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName))return;
-  if(e.code==='Space'&&['ready','meter','flight'].includes(phase)&&(e.target.tagName!=='BUTTON'||e.target.id==='action')){e.preventDefault();if(!e.repeat)action();}
+  if(e.code==='Space'&&['ready','meter','flight','play'].includes(phase)&&(e.target.tagName!=='BUTTON'||e.target.id==='action')){e.preventDefault();if(!e.repeat)action();}
   if(e.code==='Enter'&&phase==='review'&&e.target.tagName!=='BUTTON'){e.preventDefault();advance();}
   if(e.code.startsWith('Arrow')&&canAim()){
     e.preventDefault();aim.x=Math.max(-1.8,Math.min(1.8,aim.x+(e.code==='ArrowRight'?.1:e.code==='ArrowLeft'?-.1:0)));
@@ -201,16 +225,27 @@ function frame(now){
   }else if(phase==='flight'){
     elapsed+=dt;
     if(demo){
-      if(!swing&&elapsed>=pitch.duration-SWING_LEAD&&!['ball','strike'].includes(cpuDecision.kind))swing={inputTime:elapsed};
-      if(elapsed>=pitch.duration+.08)finishPitch(cpuDecision);
+      if(!swing&&elapsed>=pitch.duration-SWING_LEAD&&!['ball','strike'].includes(cpuDecision.kind))swing={inputTime:pitch.duration-SWING_LEAD};
+      if(elapsed>=pitch.duration)finishPitch(cpuDecision);
     }else if(match.half===0){
       if(swing&&elapsed>=swing.impactTime&&['hit','foul'].includes(swing.feedback.kind))finishPitch(swing.outcome);
       else if(elapsed>=Math.max(pitch.duration+.2,swing?.impactTime??0))finishPitch(swing?swing.outcome:{kind:pitch.inZone?'strike':'ball',detail:pitch.inZone?'That pitch crossed the zone.':'Outside the zone. Good take.'});
-    }else if(elapsed>=pitch.duration+.08)finishPitch(cpuDecision);
+    }else if(elapsed>=pitch.duration)finishPitch(cpuDecision);
   }else if(phase==='play'){
-    playTime+=dt;if(playTime>=(play.kind==='homerun'?3.1:2.25))commitPlay();
+    playTime+=dt;
+    if(play.throwDelay===null&&playTime>=GROUND_PLAY.contactHold+GROUND_PLAY.arrival+GROUND_PLAY.transfer+GROUND_PLAY.maxDelay)completeThrow();
+    if(playTime>=playDuration(play.kind)+(play.throwDelay??0))commitPlay();
   }else if(phase==='call'&&clock>=.85)commitPlay();
-  renderer.draw({match,phase,clock,elapsed,pitch,swing,aim,play,event,playTime,cpuSwing:cpuDecision&&!['ball','strike'].includes(cpuDecision.kind),guide:$('guide').checked});
+  const renderPhase=phase==='paused'?previousPhase:phase==='roster'?(rosterPhase==='paused'?previousPhase:rosterPhase):phase;
+  renderer.draw({match,phase:renderPhase,clock,elapsed,pitch,swing,aim,play,event,playTime,cpuSwing:cpuDecision&&!['ball','strike'].includes(cpuDecision.kind),guide:$('guide').checked,forgiving:$('forgiving').checked});
   requestAnimationFrame(frame);
 }
 setup();requestAnimationFrame(frame);
+if(renderer.ready){
+ $('start').disabled=true;$('watch-demo').disabled=true;$('loading-status').textContent='Getting the ballpark ready…';
+ renderer.ready.then(()=>{
+  assetsReady=true;$('start').disabled=false;$('watch-demo').disabled=false;$('loading-status').textContent='';
+ }).catch(()=>{
+  $('loading-status').textContent='Some game artwork could not load. Please reload to try again.';
+ });
+}

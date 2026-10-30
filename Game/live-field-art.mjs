@@ -15,6 +15,7 @@ export function fieldProject(p){const d=1+.008982*p.y;return{x:768+11.608*p.x/d,
 export const fieldPoseDefinition=pose=>typeof pose==='string'?LIVE_FIELD_POSES[pose]:pose;
 export function poseGround(pose,p){return fieldProject(fieldPoseDefinition(pose)?.bagFoot&&p.bagContact?p.bagContact:p.point);}
 export function liveFieldPose(s,p){
+ if(p.tagging)return null;
  if(CATCHER_CAST[p.id]&&p.id.startsWith(s.teamId+'-')&&p.throws==='R'){
   const receiver=s.players.find(x=>x.id===s.throwToId);
   if(s.throwFromId===p.id&&['transfer','throw'].includes(s.phase))return receiver?.point.x>p.point.x?catcherFieldPose(p.id,p.throws,s.phase==='throw'?'throw':'transfer'):null;
@@ -54,6 +55,7 @@ export function poseLandmark(pose,point,landmark='glove'){
 }
 export function liveBallPoint(s,poses){
  const ground=fieldProject(s.ball);
+ if(s.phase==='tag')return{x:ground.x,y:ground.y-s.ball.z*1.2};
  if(s.phase==='airborne'&&s.airCatch&&s.fielderId==='navy-stars-mia'&&poses.get(s.fielderId)==='miaCatch'){
   const q=Math.min(1,s.clock/s.catchAt),offset=poseLandmark('miaCatch',{x:0,y:0});
   return{x:ground.x+offset.x*q**4,y:ground.y-s.ball.z*1.2+(offset.y+(s.catchHeight??6)*1.2)*q**4};

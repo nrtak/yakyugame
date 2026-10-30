@@ -20,50 +20,13 @@ jobs:
         with:
           node-version: '22'
       - name: Test game
-        run: node --test Game/cpu-difficulty.test.mjs Game/engine.test.mjs Game/field-camera.test.mjs Game/defense-play.test.mjs Game/home-run-derby.test.mjs Game/tournament-progress.test.mjs Game/game-help.test.mjs Game/player-profiles.test.mjs Game/game-controls.test.mjs Game/game-effects.test.mjs Game/pitch-types.test.mjs Game/flight-defense.test.mjs Game/match-engine.test.mjs Game/inning-controller.test.mjs Game/device-game.test.mjs Game/match-save.test.mjs Game/batting-practice.test.mjs Game/field-atlas.test.mjs Game/opposing-art.test.mjs Game/running-art.test.mjs Game/live-field-art.test.mjs Game/integration-audit.test.mjs Game/competition-flow.test.mjs Game/scoring-audit.test.mjs Game/scene.test.mjs
+        run: node --test Game/*.test.mjs
       - name: Bundle offline game
         run: node Scripts/build-game.mjs
       - name: Build iPhone simulator app
         run: |
           xcodebuild -version
           xcodebuild -project YakyuGame.xcodeproj -scheme YakyuGame -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
-      - name: Capture iPhone simulator screens
-        if: github.event_name != 'workflow_dispatch'
-        timeout-minutes: 15
-        shell: bash
-        run: |
-          set -euo pipefail
-          xcrun simctl list devices available --json > build/devices.json
-          device_id="$(python3 - <<'PYDEVICE'
-          import json
-          data = json.load(open('build/devices.json'))
-          phones = [d for group in data['devices'].values() for d in group if d.get('isAvailable') and d['name'].startswith('iPhone')]
-          assert phones, 'No iPhone simulator available'
-          print(phones[0]['udid'])
-          PYDEVICE
-          )"
-          xcrun simctl boot "$device_id" || true
-          xcrun simctl bootstatus "$device_id" -b
-          xcrun simctl install "$device_id" build/Build/Products/Debug-iphonesimulator/YakyuGame.app
-          container="$(xcrun simctl get_app_container "$device_id" com.yakyugame.app data)"
-          mkdir -p build/screenshots
-          for scene in menu batting competitions; do
-            xcrun simctl terminate "$device_id" com.yakyugame.app 2>/dev/null || true
-            rm -f "$container/Documents/capture-ready.txt"
-            xcrun simctl launch "$device_id" com.yakyugame.app "--capture-scene=$scene"
-            for attempt in $(seq 1 90); do
-              if [[ -f "$container/Documents/capture-ready.txt" ]] && [[ "$(cat "$container/Documents/capture-ready.txt")" == "$scene" ]]; then break; fi
-              sleep 1
-            done
-            [[ -f "$container/Documents/capture-ready.txt" ]] || { echo "::error::Screen did not become ready: $scene"; exit 1; }
-            xcrun simctl io "$device_id" screenshot "build/screenshots/$scene.png"
-          done
-      - uses: actions/upload-artifact@v6
-        if: always() && github.event_name != 'workflow_dispatch'
-        with:
-          name: YakyuGame-screenshots
-          path: build/screenshots/*.png
-          if-no-files-found: error
       - uses: actions/upload-artifact@v6
         with:
           name: YakyuGame-simulator

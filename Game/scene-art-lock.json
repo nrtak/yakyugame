@@ -1,5 +1,6 @@
 {
-  "version": 1,
+  "status": "user-authorized-testflight-snapshot-2026-10-29",
+  "note": "Integrity lock only; incomplete artwork remains incomplete. No held drafts added.",
   "assets": {
     "assets/scene-mia-fly-return-v1.png": "b444c7ae081c4e76e40302235729eea6f699703322fb02c6d74df4fdc7932bd2",
     "assets/scene-ken-sora-throw-v1.png": "f66f85111185c0546ec2eb307fb2b134e08ba7b6359aa12df78ec14ab8b8f56f",
@@ -126,6 +127,25 @@
     "assets/scene-coral-club-sora-catcher-throw-v2.png": "38b115cc3bdb2c8a20886bdeceaf7b64130989d5164dab8ab9c7b089fdb7f562",
     "assets/scene-coral-emma-base-running-v1.png": "2d1e19177d5c420273a8cfc932bea354a589dde1fcd39b7772ad55fb602d3230",
     "assets/scene-coral-emma-running-stride-b-v5.png": "bb562d506efd8b0aef8fd7f6e53333284462d2ecf57ee6771f3dc2dd73d785e2",
+    "assets/scene-defense-pitching-park-v2.png": "992da650621e177a377bf3c5c490408f4c94d523afabbcf796bcbc901484c81b",
+    "assets/scene-reference-ryan-idle-v1.png": "7898dc9c02bc9b73a5162ed7936b69ab4d8f16c5520bd5c7dabf672f5d432e70",
+    "assets/scene-defense-ryan-set-v2.png": "7028dbf0cd1c02f863e909835d6cfac171fbba34690ed176babf0c82d78c15b6",
+    "assets/scene-defense-ryan-lift-v2.png": "a288ed25a378d9dbe58fa15f5e81bd9e844821c6b864c8afb7f4359f94722f22",
+    "assets/scene-defense-ryan-stride-v2.png": "cc5d8e10492e32eebee4ee80cd103b375770e0bbf9b24984aa84ca007a9e7047",
+    "assets/scene-defense-ryan-release-v3.png": "9c954d4ae2c5b6e9cd353ced9b49e365e8dfe58a55b6caac54baa798f41d6411",
+    "assets/scene-defense-ryan-recovery-v2.png": "ef67fee3610a3e0928152b4618c99381d8caa87d7a8efac71fe4c89fef3ac7e5",
+    "assets/scene-defense-ryan-acceleration-v1.png": "ff49b3faaed67aa4b7a31d5b3c679f4d8add236276bee5fbd44369919c8f5900",
+    "assets/scene-defense-ryan-deceleration-v1.png": "c416f46b254c178b4126147e20be1c77eeb44c42fd15006a0ef8677ea423fbbe",
+    "assets/scene-defense-ryan-leg-swing-v2.png": "7e78ad141e2ee66c905bdde912a4e692fe9e58b0e179e1c9061bf2ffe05b8a62",
+    "assets/scene-defense-ryan-finish-v3.png": "3a4ec7ae38cfdde42fec51971d0febfae2d5ca24c977d4809f17555798186358",
+    "assets/scene-defense-ryan-arm-back-v1.png": "ded503254d8ed3fa034b29eea6660c3ce4ed61ede08761a53d04ff5f9d11efd6",
+    "assets/scene-defense-emma-set-v5.png": "82776f2389609cfec33f0b264db5283577900e94db6efd42b440023409b24471",
+    "assets/scene-defense-emma-lift-v4.png": "7a0ec477dc1b3bde959db1ae724cf55a3099a6371ab92253fc8a901484910685",
+    "assets/scene-defense-emma-stride-v3.png": "3fa465282687c89c2a84cd2abdfaf90f36c4f6ebcf4fafc7850bc174775c9de2",
+    "assets/scene-defense-emma-release-v5.png": "f5b4b769f3d604bed3c76d31de8e22876fb4feba2a393dbfcd48ef91e2524514",
+    "assets/scene-defense-emma-recovery-v4.png": "4cfd367a27e9c5e63f44f24bd3b124398d1c3e497166672366555ffd2c7108b7",
+    "assets/scene-reference-emma-bat-ready-v2.png": "d8736fa25adf51b215b8942b73eae59115dbaf878d63011ff3f511a0b53b5455",
+    "assets/scene-defense-ryan-bat-ready-third-v1.png": "f9f0658a0678fcffd0e12813c8f79e7a9dd6733f90d4bb3844522f506bb9cf80",
     "assets/menu-a3-emma-ryan-v1.png": "075c99af2c1521374927f73aed644b489d8272b0356175d5f88fa477ea780eb2",
     "assets/menu-sakura-league-background-v1.png": "9cebdf398f656f82ad0c0a9e321bd57af49898ac8f294e43b552af505c411f7c",
     "assets/scene-coral-ken-field-atlas-v4.png": "bc32872f6b2fa0cc1558010787c026c89d0990241d664dd9e29304e80e54f152",
@@ -144,6 +164,5 @@
     "assets/scene-sand-dunes-leo-motion-v1.png": "7e5d4f880ebe8e8933297fd37842af2b23d7d04ece4ddac6333976b24478c258",
     "assets/scene-coral-emma-pitch-home-lift-v7.png": "2a450c45f9a4f7a637eb86e4645ee4b3d447ccce49f9550eb6cf0ae92e3ef44e",
     "assets/scene-coral-emma-pitch-home-set-v6.png": "9fe0365f4ad8c090b8303f94460d1cbc97f307b624cafa0fb1ac2aa2c0113ce6"
-  },
-  "characters": {}
+  }
 }

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#182d40">
+  <title>Baseball — Batting Lab</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="app">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">⚾</span><div><h1>Batting Lab</h1><span class="eyebrow">FIRST PLAYABLE · CORAL CLUB</span></div></div>
+    <div class="session-stats"><span>Pitch <strong id="pitch-number">1 / 10</strong></span><span>Score <strong id="score">0</strong></span><span>Hits <strong id="hits">0</strong></span></div>
+    <button id="pause" class="small" disabled>Pause</button>
+  </header>
+  <section class="field-wrap" aria-label="Batting practice">
+    <canvas id="field" width="1280" height="720" aria-label="Baseball field. Drag across the field to aim. Use the Swing button as the ball reaches the plate.">Use the aim sliders and Swing button to play.</canvas>
+    <div class="field-caption"><span class="live-dot"></span> RIVERSIDE PARK <span class="caption-secondary">· BATTING PRACTICE</span></div>
+    <div id="pitch-label" class="pitch-label">WARM UP</div>
+    <div class="aim-hint" id="aim-hint">Drag to aim · swing as the ball reaches the ring</div>
+    <button id="swing" class="swing" disabled><span>SWING</span><small>Space</small></button>
+    <div id="overlay" class="overlay">
+      <div class="intro" id="intro">
+        <span class="eyebrow">TEN PITCHES. FIND YOUR SWING.</span>
+        <h2>A little practice.<br> A great first hit.</h2>
+        <p>Drag the aiming ring toward the pitch. Tap <b>Swing</b> just before the ball reaches the plate. Let outside pitches pass.</p>
+        <div class="intro-options"><label for="speed">Pitch speed</label><select id="speed"><option value="relaxed">Relaxed</option><option value="standard" selected>Standard</option><option value="quick">Quick</option></select></div>
+        <button id="start" class="primary">Step up to the plate <span aria-hidden="true">→</span></button>
+        <small>Temporary art · batting helmets included · landscape recommended</small>
+      </div>
+      <div class="result-panel" id="result-panel" hidden>
+        <span class="eyebrow" id="result-kicker">PITCH COMPLETE</span>
+        <h2 id="result-title"></h2>
+        <p id="result-detail"></p>
+        <div id="result-metrics" class="result-metrics"></div>
+        <button id="next" class="primary">Next pitch →</button>
+      </div>
+      <div class="result-panel" id="paused-panel" hidden><span class="eyebrow">TAKE YOUR TIME</span><h2>Practice paused</h2><p>Your pitch will resume from the same spot.</p><button id="resume" class="primary">Resume practice →</button></div>
+    </div>
+    <div class="feedback" id="feedback" aria-live="polite" aria-atomic="true"></div>
+  </section>
+  <footer class="toolbar">
+    <div class="status"><span id="status">Start with three fastballs. Then watch for curves and changes.</span><span id="progress" class="pitch-dots" aria-hidden="true"></span></div>
+    <div class="tools"><label class="check"><input type="checkbox" id="guide" checked> Timing guide</label><button class="small" id="restart">Restart</button><button class="small" id="access-toggle" aria-expanded="false" aria-controls="aim-controls">Aim controls</button></div>
+  </footer>
+  <section id="aim-controls" class="accessible-controls" hidden>
+    <label>Horizontal aim <input id="aim-x" type="range" min="-180" max="180" value="0"></label>
+    <label>Vertical aim <input id="aim-y" type="range" min="-150" max="150" value="0"></label>
+    <p>Keyboard: arrow keys aim, Space swings, Enter advances after a result. Swing animation takes 55 ms to reach contact.</p>
+  </section>
+  <p class="scope-note">Batting feel prototype · scores measure practice contact, not match runs · final A3 character art and 3D A2 models come later.</p>
+</main>
+<script type="module" src="game.mjs"></script>
+</body>
+</html>

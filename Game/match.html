@@ -2,44 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#173749"><title>Yakyu Game — Three Innings</title>
+  <meta name="theme-color" content="#173749"><title>Yakyu Game — One Inning</title>
   <link rel="stylesheet" href="match.css">
 </head>
 <body>
 <main class="game-shell">
   <header class="match-top">
-    <div class="brand"><span aria-hidden="true" class="brand-ball">⚾</span><div><h1>Yakyu Game</h1><span>THREE INNINGS · ONE GOOD GAME</span></div></div>
+    <div class="brand"><span aria-hidden="true" class="brand-ball">⚾</span><div><h1>Yakyu Game</h1><span>ONE INNING · MECHANICS TEST</span></div></div>
     <div class="scoreboard" aria-label="Score"><div class="team-score coral"><span>CORAL <small>YOU</small></span><b id="away-score">0</b></div><div class="inning"><strong id="inning">TOP 1</strong><span id="half-role">YOU BAT</span></div><div class="team-score navy"><b id="home-score">0</b><span>NAVY <small>CPU</small></span></div></div>
     <div class="header-actions"><button id="roster-open" class="quiet">Teams</button><button id="pause" class="quiet" disabled>Pause</button></div>
   </header>
   <section class="stadium" aria-label="Baseball game">
     <canvas id="field" width="1280" height="720" tabindex="0" aria-label="Baseball game field. Drag to aim. Use the action button to swing or pitch.">Baseball game. Keyboard arrows aim, Space swings or releases a pitch.</canvas>
     <div class="park-label">RIVERSIDE PARK <span>FRIENDLY EXHIBITION</span></div>
-    <div class="count-strip"><span>B <b id="balls">0</b></span><span>S <b id="strikes">0</b></span><span>OUT <b id="outs">0</b></span><span id="base-state" aria-label="Bases empty">◇ ◇ ◇</span></div>
-    <div class="player-ribbon"><strong id="batter-name">Maya · CF</strong><span id="pitcher-name">vs Kai · P</span><small id="pitch-info">CORAL CAPTAIN AT BAT</small></div>
-    <div id="pitch-options" class="pitch-options" hidden role="group" aria-label="Pitch selection"><button data-pitch="fast" aria-pressed="true">Fastball</button><button data-pitch="curve" aria-pressed="false">Curve</button><button data-pitch="change" aria-pressed="false">Changeup</button></div>
+    <div class="count-strip"><span>B <b id="balls">0</b></span><span>S <b id="strikes">0</b></span><span>O <b id="outs">0</b></span></div><div id="base-map" class="base-map"><i></i><i></i><i></i><i></i><span id="base-state" aria-label="Bases empty">◇ ◇ ◇</span></div><div class="aim-pad" aria-hidden="true"><span>▲</span><span>▼</span><span>◀</span><span>▶</span><i id="aim-thumb"></i></div>
+    <div class="player-ribbon"><strong id="batter-name">Emma · P</strong><span id="pitcher-name">vs Ryan · P</span><small id="pitch-info">CORAL CAPTAIN AT BAT</small></div>
+    <div id="pitch-options" class="pitch-options" hidden role="group" aria-label="Pitch selection"><button data-pitch="fast" aria-pressed="true">⚾ FAST</button><button data-pitch="curve" aria-pressed="false">◔ CURVE</button><button data-pitch="change" aria-pressed="false">↓ CHANGE</button></div>
     <div id="release-wrap" class="release-wrap" hidden><span>RELEASE IN THE CENTER</span><div class="release-track"><i class="release-sweet"></i><i id="release-marker"></i></div></div>
     <div class="field-hint" id="field-hint">Drag to aim · Space or tap to swing</div>
     <button id="action" class="action" disabled><span id="action-word">SWING</span><small id="action-key">SPACE</small></button>
     <div id="callout" class="callout" aria-live="polite" aria-atomic="true"></div>
+    <div id="play-feedback" class="play-feedback" role="status" hidden></div>
     <div class="modal-layer" id="modal-layer">
       <section class="panel intro-panel" id="intro-panel" aria-labelledby="intro-title">
         <div class="match-art" id="match-art" aria-hidden="true"></div>
-        <div class="intro-copy"><span class="eyebrow">CORAL CLUB × NAVY CLUB</span><h2 id="intro-title">A whole game.<br> One afternoon.</h2><p>Lead Maya’s team through three innings. Bat, pitch, and watch your teammates make the plays.</p>
-          <div class="setup-controls"><label for="speed">Pitch speed<select id="speed"><option value="relaxed">Relaxed</option><option value="standard" selected>Standard</option><option value="quick">Quick</option></select></label><label class="check"><input id="guide" type="checkbox" checked> Batting timing guide</label></div>
-          <button id="start" class="primary">Play three innings <span>→</span></button><div class="intro-links"><button id="intro-teams" class="text-button">Meet both teams</button><button id="watch-demo" class="text-button">Watch demo game</button></div>
+        <div class="intro-copy"><span class="eyebrow">CORAL CLUB × NAVY STARS</span><h2 id="intro-title">A whole game.<br> One afternoon.</h2><p>Lead Emma’s Coral Club against Ryan’s Navy Stars. Bat, pitch, and follow your teammates through one inning.</p>
+          <div class="setup-controls"><label for="speed">Pitch speed<select id="speed"><option value="relaxed">Relaxed</option><option value="standard" selected>Standard</option><option value="quick">Quick</option></select></label><label class="check"><input id="guide" type="checkbox" checked> Batting timing guide</label><label class="check"><input id="forgiving" type="checkbox" checked> Contact assist · wider hitting area</label><label class="check"><input id="manual-throws" type="checkbox"> Tap to throw to first · bases empty</label></div>
+          <button id="start" class="primary">Play one inning <span>→</span></button><div class="intro-links"><button id="intro-teams" class="text-button">Meet both teams</button><button id="watch-demo" class="text-button">Watch demo game</button></div>
+          <p id="loading-status" role="status"></p>
           
         </div>
       </section>
       <section class="panel compact-panel" id="break-panel" hidden><span class="eyebrow" id="break-kicker">CHANGE SIDES</span><h2 id="break-title"></h2><p id="break-detail"></p><div id="break-score" class="break-score"></div><button id="continue" class="primary">Play ball →</button></section>
-      <section class="panel compact-panel" id="pause-panel" hidden><span class="eyebrow">TAKE YOUR TIME</span><h2>Game paused</h2><p>The ball and count will wait for you.</p><button id="resume" class="primary">Resume game →</button><button id="pause-restart" class="text-button">Start a new game</button></section>
-      <section class="panel final-panel" id="final-panel" hidden><span class="eyebrow">FINAL · THREE INNINGS</span><h2 id="final-title"></h2><p id="captain-reaction"></p><div id="line-score"></div><div id="final-highlight" class="final-highlight"></div><div class="final-actions"><button id="rematch" class="primary">Play again →</button><button id="boxscore-open" class="quiet">Box score</button></div></section>
+      <section class="panel compact-panel" id="pause-panel" hidden><span class="eyebrow">TAKE YOUR TIME</span><h2>Game paused</h2><p>The ball and count will wait for you.</p><label class="check"><input id="sound" type="checkbox"> Sound</label><button id="aim-toggle" class="quiet" aria-expanded="false" aria-controls="aim-controls">Aim controls</button><button id="resume" class="primary">Resume game →</button><button id="pause-restart" class="text-button">Start a new game</button></section>
+      <section class="panel final-panel" id="final-panel" hidden><span class="eyebrow">FINAL · ONE INNING</span><h2 id="final-title"></h2><p id="captain-reaction"></p><div id="line-score"></div><div id="final-highlight" class="final-highlight"></div><div class="final-actions"><button id="rematch" class="primary">Play again →</button><button id="boxscore-open" class="quiet">Box score</button></div></section>
       <section class="panel roster-panel" id="roster-panel" hidden><div class="panel-heading"><div><span class="eyebrow">THE RIVERSIDE LEAGUE</span><h2 id="roster-title">Meet the teams</h2></div><button id="roster-close" class="quiet">Close</button></div><div id="roster-content"></div></section>
     </div>
   </section>
-  <footer class="match-footer"><div class="play-status"><strong id="status">Maya and Kai are ready.</strong><span id="detail">Two teams, nine players each, one community ballpark.</span></div><div class="footer-actions"><label class="check"><input type="checkbox" id="sound"> Sound</label><button id="aim-toggle" class="quiet" aria-expanded="false" aria-controls="aim-controls">Aim controls</button><button id="next" class="primary" disabled>Next pitch →</button></div></footer>
+  <footer class="match-footer"><div class="play-status"><strong id="status">Emma and Ryan are ready.</strong><span id="detail">Two teams, nine players each, one community ballpark.</span></div><div class="footer-actions"><button id="next" class="primary" disabled>Next pitch →</button></div></footer>
   <section class="aim-controls" id="aim-controls" hidden><label>Horizontal aim<input type="range" id="aim-x" min="-180" max="180" value="0"></label><label>Vertical aim<input type="range" id="aim-y" min="-150" max="150" value="0"></label><p>Arrows aim. Space swings or starts/releases a pitch. Enter advances after a result. On defense, tap Pitch and release when the marker reaches the center.</p></section>
-  <p class="scope">Three-inning exhibition · Coral bats first · no extra innings · fielding and runner advancement are automatic.</p>
+  <p class="scope">One-inning exhibition · Coral bats first · no extra innings · fielding and runner advancement are automatic.</p>
 </main>
 <script type="module" src="match-ui.mjs"></script>
 </body>

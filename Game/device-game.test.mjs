@@ -44,6 +44,15 @@ test('out review retains the completed batter and camera until the player contin
 test('fair contact shows the follow-through before the field camera takes over',()=>{
  const g=new DeviceGame();g.start();reach(g,'flight');g.setAim(g.pitch.x,g.pitch.y);while(g.elapsed<g.pitch.duration-SWING_LEAD-.005)g.step(.005);g.swing();reach(g,'contact');assert.equal(swingFrame(g.sceneState()),2);g.step(.05);g.step(.05);g.step(.02);assert.equal(g.phase,'contact');assert.equal(swingFrame(g.sceneState()),3);g.step(.03);assert.equal(usesFieldView(g.sceneState()),false);reach(g,'field');
 });
+
+test('CPU fair contact holds the plate-arrival instant rather than jumping from an overshot pitch',()=>{
+ const g=new DeviceGame({teamId:'navy-stars'});g.start();g.releasePitch();reach(g,'flight');
+ assert.ok(['single','double','triple','homerun','groundout','flyout'].includes(g.cpu.kind));
+ while(g.phase==='flight')g.step(.017);
+ assert.equal(g.phase,'contact');assert.equal(g.elapsed,g.pitch.duration);const impact=g.sceneState();
+ assert.ok(Math.abs(impact.elapsed-impact.swingAt-SWING_LEAD)<1e-8);assert.equal(g.inning.events.length,0);
+ g.step(.05);assert.equal(g.elapsed,g.pitch.duration);assert.equal(g.phase,'contact');reach(g,'field');assert.ok(g.defense);
+});
 test('the device controller can run three regulation innings while the default stays one',()=>{
  assert.equal(new DeviceGame().match.innings,1);
  const g=new DeviceGame({innings:3});g.start();let priorOrder=0;

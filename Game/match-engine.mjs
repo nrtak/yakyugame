@@ -2,6 +2,7 @@ import { seededRandom, SPEEDS } from './engine.mjs';
 import { TEAMS, allPlayers, playerById } from './rosters.mjs';
 import {PITCH_TYPES,pitcherRepertoire,pitchMovement} from './pitch-types.mjs';
 import {cpuDifficulty} from './cpu-difficulty.mjs';
+import {tagContactValid} from './defense-tags.mjs';
 
 export function createMatch({innings=3,seed=211,homeTeamId='navy-stars'}={}) {
   if(!Number.isInteger(innings)||innings<1||innings>9)throw Error('Choose 1–9 regulation innings');
@@ -65,21 +66,29 @@ function applyDefense(m,outcome,event,batter,stats){
   for(let i=0;i<3;i++){chain=chain&&Boolean(m.bases[i]);if(chain)forces[['2B','3B','HOME'][i]]=m.bases[i];}
   const retired=outcome.retired;
   if(!Array.isArray(retired)||retired.length>3-m.outs)throw Error('Too many defensive outs');
-  const checked=new Set();
+  const checked=new Set(),hasTags=retired.some(r=>r.force===false);let previousAt=-1;
+  if(hasTags&&(!Number.isFinite(c.runnerTime)||c.runnerTime<=0))throw Error('Missing tag runner clock');
   for(const r of retired){
     const from=m.bases.indexOf(r.id),behind=r.id===batter.id?[]:[batter.id,...m.bases.slice(0,from).filter(Boolean)];
-    if(!r.force||forces[r.base]!==r.id||checked.has(r.id)||behind.some(id=>checked.has(id)))throw Error('Invalid or removed force');checked.add(r.id);
+    if(r.force===true){if(forces[r.base]!==r.id||checked.has(r.id)||behind.some(id=>checked.has(id)))throw Error('Invalid or removed force');}
+    else if(r.force===false){
+     const to=['1B','2B','3B','HOME'].indexOf(r.base)+1,arriveAt=c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55),d=90/Math.sqrt(2),points=[{x:0,y:0},{x:d,y:d},{x:0,y:2*d},{x:-d,y:d},{x:0,y:0}],q=r.at/arriveAt;
+     if(from<0||checked.has(r.id)||forces[r.base]!==r.id||to!==from+2||!behind.some(id=>checked.has(id)))throw Error('Invalid tag runner or active force');
+     const start=points[from+1],end=points[to],expected={x:start.x+(end.x-start.x)*q,y:start.y+(end.y-start.y)*q},tag=r.tag;
+     if(!tag||!Number.isFinite(tag.controlAt)||tag.controlAt>r.at||!TEAMS[fieldingTeam(m)].players.some(p=>p.id===tag.holderId)||!tagContactValid({at:r.at,arriveAt,holderPoint:tag.holderPoint,runnerPoint:tag.runnerPoint,startPoint:start})||Math.hypot(tag.runnerPoint.x-expected.x,tag.runnerPoint.y-expected.y)>1e-6)throw Error('Tag lacks controlled runner contact');
+    }else throw Error('Invalid or removed force');
+    if(hasTags&&(!Number.isFinite(r.at)||r.at<previousAt))throw Error('Invalid retirement clock');previousAt=r.at;checked.add(r.id);
   }
-  const retiredIds=new Set(retired.map(r=>r.id)),thirdForce=m.outs+retired.length===3;
+  const retiredIds=new Set(retired.map(r=>r.id)),third=m.outs+retired.length===3?retired.at(-1):null,cancelRuns=third&&(third.force||third.id===batter.id);
   const movements=[{id:batter.id,base:1},...m.bases.map((id,i)=>id?{id,base:forces[['2B','3B','HOME'][i]]===id?i+2:i+1}:null).filter(Boolean)].filter(r=>!retiredIds.has(r.id));
-  const destinations=movements.filter(r=>r.base<4),runs=thirdForce?[]:movements.filter(r=>r.base===4).map(r=>r.id);
+  const destinations=movements.filter(r=>r.base<4),runs=cancelRuns?[]:movements.filter(r=>r.base===4&&(!third||(c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55))<third.at-1e-8)).map(r=>r.id);
   const same=(a,b)=>JSON.stringify(a.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))))===JSON.stringify(b.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))));
   if(!Array.isArray(outcome.destinations)||!Array.isArray(outcome.runs)||!same(outcome.destinations,destinations)||!same(outcome.runs,runs))throw Error('Invalid defensive runner destinations');
   const kind=retired.length?(retiredIds.has(batter.id)?'groundout':'fielderschoice'):'single';
   if(outcome.recordAs!==kind)throw Error('Defensive scoring does not match the play');
   m.bases=[null,null,null];for(const r of destinations)m.bases[r.base-1]=r.id;
   m.outs+=retired.length;stats.ab++;if(kind==='single'){stats.h++;m.hits[m.half]++;}
-  event.kind=kind;event.atBatEnded=true;event.retired=structuredClone(retired);
+  event.kind=kind;event.atBatEnded=true;event.retired=structuredClone(retired);event.tagOuts=retired.filter(r=>!r.force).length;
   for(const id of runs)addRun(m,id,event);
   event.title=kind==='groundout'?`${batter.name} grounds out`:kind==='fielderschoice'?`${batter.name} reaches on a fielder's choice`:`${batter.name} reaches safely`;
   if(retired.length>=2){event.playType=retired.length===3?'tripleplay':'doubleplay';event.title=retired.length===3?'Triple play!':`${batter.name} hits into a double play`;}

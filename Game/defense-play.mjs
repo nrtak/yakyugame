@@ -1,4 +1,5 @@
 import {TEAMS} from './rosters.mjs';
+import {firstTagContact} from './defense-tags.mjs';
 
 // Feet in a fixed home-to-center coordinate system. Cameras never change sides.
 const D=90/Math.sqrt(2);
@@ -15,13 +16,14 @@ const validPoint=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y);
 const baseIndex=b=>['1B','2B','3B','HOME'].indexOf(b)+1;
 
 export class GroundDefense {
- constructor({teamId='navy-stars',batterId='coral-club-emma',bases=[null,null,null],outs=0,target={x:-40,y:115},ballTravel=1.5,runnerTime=4.45}={}){
+ constructor({teamId='navy-stars',batterId='coral-club-emma',bases=[null,null,null],outs=0,target={x:-40,y:115},ballTravel=1.5,runnerTime=4.45,runnerTimes={}}={}){
   const team=TEAMS.find(t=>t.id===teamId),offense=TEAMS.find(t=>t.id!==teamId);
   if(!team||!offense||!validPoint(target)||target.y<0||Math.abs(target.x)>target.y||distance(target,BASE_POINTS.HOME)>330)throw Error('Invalid field or fair ground-ball target');
   if(!Number.isInteger(outs)||outs<0||outs>2||bases.length!==3||!Number.isFinite(ballTravel)||ballTravel<=0||!Number.isFinite(runnerTime)||runnerTime<=0)throw Error('Invalid play context');
   const ids=[batterId,...bases.filter(Boolean)],allowed=new Set(offense.players.map(p=>p.id));
   if(new Set(ids).size!==ids.length||ids.some(id=>!allowed.has(id)))throw Error('Runner identities must belong to the batting team and be unique');
-  this.context={teamId,batterId,bases:[...bases],outs};this.clock=0;this.throw=null;this.throws=[];this.retired=[];this.target={...target};this.ballTravel=ballTravel;this.runnerTime=runnerTime;
+  if(!runnerTimes||typeof runnerTimes!=='object'||Array.isArray(runnerTimes)||Object.entries(runnerTimes).some(([id,t])=>!bases.includes(id)||!Number.isFinite(t)||t<=0))throw Error('Invalid runner times');
+  this.context={teamId,batterId,bases:[...bases],outs,runnerTime,runnerTimes:{...runnerTimes}};this.clock=0;this.throw=null;this.throws=[];this.retired=[];this.tagAttempt=null;this.lastTag=null;this.target={...target};this.ballTravel=ballTravel;this.runnerTime=runnerTime;
   this.players=team.players.map(p=>({...p,start:{...DEFENSE_SPOTS[p.position]},destination:{...DEFENSE_SPOTS[p.position]},role:'support',arriveAt:0}));
   this.fielder=this.players.slice().sort((a,b)=>distance(a.start,target)-distance(b.start,target))[0];
   this.fielder.role='field';this.fielder.destination={...target};this.fielder.arriveAt=.16+distance(this.fielder.start,target)/24;
@@ -39,7 +41,7 @@ export class GroundDefense {
   this.forces={'1B':batterId};let chain=true;
   for(let i=0;i<3;i++){chain=chain&&Boolean(bases[i]);if(chain)this.forces[BASE_ORDER[i+2]]=bases[i];}
   this.runners=[{id:batterId,from:0,to:1,arriveAt:runnerTime}];
-  bases.forEach((id,i)=>{if(id)this.runners.push({id,from:i+1,to:this.forces[BASE_ORDER[i+2]]===id?i+2:i+1,arriveAt:this.forces[BASE_ORDER[i+2]]===id?Math.max(.4,runnerTime-.55):0});});
+  bases.forEach((id,i)=>{if(id)this.runners.push({id,from:i+1,to:this.forces[BASE_ORDER[i+2]]===id?i+2:i+1,arriveAt:this.forces[BASE_ORDER[i+2]]===id?(runnerTimes[id]??Math.max(.4,runnerTime-.55)):0});});
  }
  runnerPoint(r,time=this.clock){
   const retired=this.retired.find(x=>x.id===r.id),at=retired?Math.min(time,retired.at):time;
@@ -60,7 +62,13 @@ export class GroundDefense {
    if(!dead.has(id)&&behind.every(id=>!dead.has(id)))forces[base]=id;
   }return forces;
  }
- get canThrow(){return !this.finished&&this.context.outs+this.retired.length<3&&this.runners.some(r=>r.arriveAt>this.clock&&!this.retired.some(x=>x.id===r.id))&&this.clock>=(this.throw?this.throw.controlAt+.08:this.collectAt);}
+ get canThrow(){return !this.finished&&this.context.outs+this.retired.length<3&&this.runners.some(r=>r.arriveAt>this.clock&&!this.retired.some(x=>x.id===r.id))&&this.clock>=(this.throw?this.throw.controlAt+.08:this.collectAt)&&(!this.lastTag||this.clock>=this.lastTag.at+.18);}
+ get tagOptions(){
+  if(this.finished||this.context.outs+this.retired.length>=3||this.tagAttempt||this.clock<(this.throw?this.throw.controlAt:this.collectAt))return[];
+  const holder=this.throw?this.players.find(p=>p.id===this.throw.receiverId):this.fielder,point=this.playerPoint(holder);
+  return this.runners.filter(r=>r.from>0&&r.to!==r.from&&this.clock<r.arriveAt-1e-8&&!this.retired.some(x=>x.id===r.id)&&this.activeForces[BASE_ORDER[r.to]]!==r.id&&distance(point,BASE_POINTS[BASE_ORDER[r.to]])<=8).map(r=>({id:r.id,base:BASE_ORDER[r.to],holderId:holder.id}));
+ }
+ tagRunner(id){const target=this.tagOptions.find(t=>!id||t.id===id);if(!target)return false;this.tagAttempt={...target,armedAt:this.clock,controlAt:this.throw?this.throw.controlAt:this.collectAt};return true;}
  predictThrow(base,at=this.clock){
   const receiver=this.coverage[base];if(!receiver)throw Error('Unknown throw target');
   const holder=this.throw?this.players.find(p=>p.id===this.throw.receiverId):this.fielder;
@@ -73,21 +81,33 @@ export class GroundDefense {
   return {base,holderId:holder.id,receiverId:receiver.id,releaseAt,catchAt,controlAt,flight,start,end,out,runnerId:runner?.id??null,callAt:runner?(out?controlAt:runner.arriveAt):catchAt,settled:false};
  }
  throwTo(base){if(!BASE_POINTS[base]||!this.canThrow)return false;const next=this.predictThrow(base);if(next.holderId===next.receiverId&&!next.carry)return false;
+  const tagRunner=this.runners.find(r=>r.to!==r.from&&BASE_ORDER[r.to]===base&&r.arriveAt>this.clock&&!this.retired.some(x=>x.id===r.id)&&this.activeForces[base]!==r.id);next.tagRunnerId=tagRunner?.id??null;if(tagRunner)next.callAt=tagRunner.arriveAt;
   if(next.carry){const holder=this.players.find(p=>p.id===next.holderId),old=this.coverage[base];if(old.id!==holder.id){const from=this.playerPoint(old);old.carry={from,to:old.start,startAt:this.clock,endAt:this.clock+distance(from,old.start)/24};old.role='support';old.covering=null;}holder.carry={from:next.start,to:next.end,startAt:this.clock,endAt:next.controlAt};holder.covering=base;this.coverage[base]=holder;}
-  this.throw=next;this.throws.push(next);return true;}
+  this.tagAttempt=null;this.lastTag=null;this.throw=next;this.throws.push(next);return true;}
  get recommendation(){
   if(!this.canThrow)return null;
   const options=Object.keys(this.activeForces).map(base=>({...this.predictThrow(base),base})).filter(t=>t.out&&(t.carry||t.holderId!==t.receiverId));
-  return options.sort((a,b)=>baseIndex(b.base)-baseIndex(a.base))[0]?.base??'1B';
+  const force=options.sort((a,b)=>baseIndex(b.base)-baseIndex(a.base))[0]?.base;if(force)return force;
+  if(this.tagAttempt||this.throw?.tagRunnerId&&this.clock>=this.throw.controlAt&&this.runners.some(r=>r.id===this.throw.tagRunnerId&&this.clock<r.arriveAt))return null;
+  const tagBases=this.runners.filter(r=>r.from>0&&r.to!==r.from&&r.arriveAt>this.clock&&!this.retired.some(x=>x.id===r.id)&&this.activeForces[BASE_ORDER[r.to]]!==r.id).map(r=>({base:BASE_ORDER[r.to],arriveAt:r.arriveAt,prediction:this.predictThrow(BASE_ORDER[r.to])})).filter(t=>t.prediction.holderId!==t.prediction.receiverId&&t.prediction.controlAt<t.arriveAt);
+  return tagBases.sort((a,b)=>b.arriveAt-a.arriveAt)[0]?.base??'1B';
  }
  get finishAt(){
-  if(this.context.outs+this.retired.length>=3)return this.throw.controlAt+.35;
+  if(this.context.outs+this.retired.length>=3){const last=this.retired.at(-1);return last.at+(last.force?.35:.45);}
   const dead=new Set(this.retired.map(r=>r.id)),runnersAt=Math.max(0,...this.runners.filter(r=>!dead.has(r.id)).map(r=>r.arriveAt+(r.from===0?.7:0)));
-  return this.throw?Math.max(runnersAt,this.throw.catchAt+.4,this.throw.controlAt+.25):Math.max(runnersAt,this.collectAt+.4);
+  const tagHold=this.lastTag?this.lastTag.at+.45:0;
+  return this.throw?Math.max(runnersAt,this.throw.catchAt+.4,this.throw.controlAt+.25,tagHold):Math.max(runnersAt,this.collectAt+.4,tagHold);
  }
  get finished(){return this.clock>=this.finishAt;}
- step(dt){if(!Number.isFinite(dt)||dt<0)throw Error('Invalid elapsed time');this.clock=Math.min(this.clock+dt,this.finishAt);
+ step(dt){if(!Number.isFinite(dt)||dt<0)throw Error('Invalid elapsed time');const before=this.clock;this.clock=Math.min(this.clock+dt,this.finishAt);
   const th=this.throw;if(th&&!th.settled&&this.clock>=th.controlAt){th.settled=true;if(th.out&&this.activeForces[th.base]===th.runnerId&&this.context.outs+this.retired.length<3)this.retired.push({id:th.runnerId,base:th.base,force:true,at:th.controlAt});}
+  const attempt=this.tagAttempt;if(attempt&&this.context.outs+this.retired.length<3){const runner=this.runners.find(r=>r.id===attempt.id),holder=this.players.find(p=>p.id===attempt.holderId);
+   if(!runner||this.retired.some(r=>r.id===attempt.id)||this.activeForces[attempt.base]===attempt.id)this.tagAttempt=null;
+   else{const at=firstTagContact({from:Math.max(before,attempt.armedAt),to:this.clock,arriveAt:runner.arriveAt,holderPoint:t=>this.playerPoint(holder,t),runnerPoint:t=>this.runnerPoint(runner,t),startPoint:BASE_POINTS[BASE_ORDER[runner.from]]});
+    if(at!==null){const tag={holderId:holder.id,controlAt:attempt.controlAt,holderPoint:this.playerPoint(holder,at),runnerPoint:this.runnerPoint(runner,at)};this.retired.push({id:runner.id,base:attempt.base,force:false,at,tag});this.lastTag={...tag,id:runner.id,at};this.tagAttempt=null;}
+    else if(this.clock>=runner.arriveAt)this.tagAttempt=null;
+   }
+  }
   this.clock=Math.min(this.clock,this.finishAt);return this.state;}
  get state(){
   const t=this.clock,th=this.throw,received=Boolean(th&&t>=th.catchAt),called=Boolean(th&&t>=th.callAt);
@@ -101,17 +121,18 @@ export class GroundDefense {
    else if(!received){phase='throw';possession='free';owner=null;const q=clamp((t-th.releaseAt)/th.flight);ball={...mix(th.start,th.end,q),z:5-q+Math.sin(q*Math.PI)*5};}
    else{phase=this.canThrow?'secured':'received';possession='receiving-glove';owner=th.receiverId;ball={...this.playerPoint(this.players.find(p=>p.id===th.receiverId)),z:4};}
   }
+  const tagVisible=this.lastTag&&t<this.lastTag.at+.45;if(this.tagAttempt){phase='tag-ready';}if(tagVisible){phase='tag';possession='fielding-glove';owner=this.lastTag.holderId;ball={...this.lastTag.runnerPoint,z:3};}
   if(this.finished)phase='complete';
-  const options=this.canThrow?Object.keys(BASE_POINTS).filter(b=>b!=='HOME'||this.coverage.HOME).map(base=>{const p=this.predictThrow(base),r=this.runners.find(r=>r.id===this.activeForces[base]);return{base,receiverId:p.receiverId,force:Boolean(r),margin:r?r.arriveAt-p.controlAt:null,out:p.out};}):[];
-  return {teamId:this.context.teamId,clock:t,phase,ball,possession,ballOwnerId:owner,fielderId:this.fielder.id,canThrow:this.canThrow,recommendation:this.recommendation,throwOptions:options,throwFromId:th?.holderId??null,throwToId:th?.receiverId??null,throwProgress:th?clamp((t-th.releaseAt)/th.flight):0,target:th?.base??null,call:called?(th.out?'out':th.runnerId?'safe':'no-force'):null,playOuts:this.retired.length,playType:this.retired.length===3?'tripleplay':this.retired.length===2?'doubleplay':null,
-   players:this.players.map(p=>{const carry=p.carry&&t>=p.carry.startAt,from=carry?p.carry.from:p.start,to=carry?p.carry.to:p.destination,end=carry?p.carry.endAt:p.arriveAt;return{id:p.id,name:p.name,position:p.position,throws:p.throws,gloveHand:p.gloveHand,role:p.role,covering:p.covering??null,point:this.playerPoint(p),moving:t>(carry?p.carry.startAt:.16)&&t<end,motion:{x:to.x-from.x,y:to.y-from.y},bagContact:p.covering&&t>=end?{...BASE_POINTS[p.covering]}:null};}),
-   runners:this.runners.map(r=>({...r,point:this.runnerPoint(r),out:this.retired.some(x=>x.id===r.id)})),finished:this.finished};
+  const options=this.canThrow?Object.keys(BASE_POINTS).filter(b=>b!=='HOME'||this.coverage.HOME).map(base=>{const p=this.predictThrow(base),r=this.runners.find(r=>r.id===this.activeForces[base]),tagRequired=!r&&this.runners.some(r=>r.from>0&&r.to!==r.from&&BASE_ORDER[r.to]===base&&r.arriveAt>t&&!this.retired.some(x=>x.id===r.id));return{base,receiverId:p.receiverId,force:Boolean(r),tagRequired,margin:r?r.arriveAt-p.controlAt:null,out:p.out};}):[];
+  return {teamId:this.context.teamId,clock:t,phase,ball,possession,ballOwnerId:owner,fielderId:this.fielder.id,canThrow:this.canThrow,canTag:this.tagOptions.length>0,tagOptions:this.tagOptions,tagPending:Boolean(this.tagAttempt),tagPoint:tagVisible?{...this.lastTag.runnerPoint}:null,callKind:this.lastTag?'tag':null,recommendation:this.recommendation,throwOptions:options,throwFromId:th?.holderId??null,throwToId:th?.receiverId??null,throwProgress:th?clamp((t-th.releaseAt)/th.flight):0,target:th?.base??null,call:this.lastTag?'out':called?(th.out?'out':th.runnerId||th.tagRunnerId?'safe':'no-force'):null,playOuts:this.retired.length,playType:this.retired.length===3?'tripleplay':this.retired.length===2?'doubleplay':null,
+   players:this.players.map(p=>{const carry=p.carry&&t>=p.carry.startAt,from=carry?p.carry.from:p.start,to=carry?p.carry.to:p.destination,end=carry?p.carry.endAt:p.arriveAt;return{id:p.id,name:p.name,position:p.position,throws:p.throws,gloveHand:p.gloveHand,role:p.role,covering:p.covering??null,point:this.playerPoint(p),tagging:this.tagAttempt?.holderId===p.id||Boolean(tagVisible&&this.lastTag.holderId===p.id),moving:t>(carry?p.carry.startAt:.16)&&t<end,motion:{x:to.x-from.x,y:to.y-from.y},bagContact:p.covering&&t>=end?{...BASE_POINTS[p.covering]}:null};}),
+   runners:this.runners.map(r=>({...r,point:this.runnerPoint(r),out:this.retired.some(x=>x.id===r.id),taggedAt:this.retired.find(x=>x.id===r.id&&!x.force)?.at??null})),finished:this.finished};
  }
  get resolution(){
   if(!this.finished)return null;
-  const retired=this.retired.map(({id,base,force})=>({id,base,force})),outIds=new Set(retired.map(r=>r.id)),thirdForce=this.context.outs+retired.length>=3;
-  const survivors=this.runners.filter(r=>!outIds.has(r.id)),runs=thirdForce?[]:survivors.filter(r=>r.to===4).map(r=>r.id);
+  const retired=structuredClone(this.retired),outIds=new Set(retired.map(r=>r.id)),third=this.context.outs+retired.length>=3?retired.at(-1):null,cancelRuns=third&&(third.force||third.id===this.context.batterId);
+  const survivors=this.runners.filter(r=>!outIds.has(r.id)),runs=cancelRuns?[]:survivors.filter(r=>r.to===4&&(!third||r.arriveAt<third.at-1e-8)).map(r=>r.id);
   return {kind:'defensiveplay',context:structuredClone(this.context),retired,destinations:survivors.filter(r=>r.to<4).map(r=>({id:r.id,base:r.to})),runs,
-   recordAs:retired.length?(outIds.has(this.context.batterId)?'groundout':'fielderschoice'):'single',detail:this.throw?`${this.throws.map(t=>t.base).join(' → ')}. ${retired.length===3?'Triple play.':retired.length===2?'Double play.':retired.length===1?'Force out.':this.throw.runnerId?'Runner reaches safely.':'No force at that base; a tag would be required.'}`:'Runners reach safely while the ball is held.'};
+   recordAs:retired.length?(outIds.has(this.context.batterId)?'groundout':'fielderschoice'):'single',detail:this.throw?`${this.throws.map(t=>t.base).join(' → ')}. ${retired.length===3?'Triple play.':retired.length===2?(retired.some(r=>!r.force)?'Double play · Tag out.':'Double play.'):retired.length===1?(retired[0].force?'Force out.':'Tag out.'):this.throw.runnerId||this.throw.tagRunnerId?'Runner reaches safely.':'No force at that base; a tag would be required.'}`:'Runners reach safely while the ball is held.'};
  }
 }

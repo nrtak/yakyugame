@@ -13,6 +13,7 @@ export class InningController {
  beginDefense(options={}){if(this.pending||this.match.over)throw Error('Cannot begin another play');this.pending=new GroundDefense({...options,teamId:matchTeams(this.match)[1-this.match.half].id,batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});return this.pending.state;}
  beginFlight(contact){if(this.pending||this.match.over)throw Error('Cannot begin another play');this.pending=new FlightDefense({contact,teamId:matchTeams(this.match)[1-this.match.half].id,batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});return this.pending.state;}
  throwTo(base){return this.pending instanceof GroundDefense?this.pending.throwTo(base):false;}
+ tagRunner(id){return this.pending instanceof GroundDefense?this.pending.tagRunner(id):false;}
  get defenseState(){return this.pending instanceof GroundDefense?this.pending.state:null;}
  step(dt){if(!this.pending)return null;
   if(this.pending instanceof GroundDefense){this.pending.step(dt);if(!this.pending.finished)return null;const outcome=this.pending.resolution;this.pending=null;return this.pitchResult(outcome);}
