@@ -68,6 +68,7 @@ function dot(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillSty
 function label(text,x,y,size=22,color='#173747'){ctx.font=`bold ${size}px system-ui`;ctx.fillStyle=color;ctx.textAlign='center';ctx.fillText(text,x,y);ctx.textAlign='start';}
 function pitching(){renderer.drawPitching(game.sceneState());}
 function draw(){
+ if(preparing)return; // Keep the completed frame while old assets are released.
  if(fieldingPractice.activity){fieldingPractice.draw();return;}
  if(competitions.activity){renderer.draw(competitions.activity.sceneState());return;}
  if(practice){renderer.draw(practice.sceneState());return;}
@@ -124,7 +125,7 @@ function update(){
 }
 async function prepareAndAdvance(start=false,{resumed=false}={}){
  if(preparing||game.paused)return;const current=game,token=++loadEpoch;preparing=true;loadError='';update();
- try{await Promise.all([renderer.prepareBatter(game.batter.id,game.batter.bats),renderer.prepareVenue(game.homeTeamId),renderer.prepareDefense(game.teams[1-game.match.half].id),renderer.prepareOpposing(game.batter.id,game.teams[1-game.match.half].players.find(p=>p.position=== 'C').id)]);if(token!==loadEpoch||current!==game||game.paused)return;const changeSides=game.event?.halfEnded;lastField=null;effects.clear();start?game.start():game.next();
+ try{await Promise.all([renderer.prepareBatter(game.batter.id,game.batter.bats),renderer.prepareVenue(game.homeTeamId),renderer.prepareDefense(game.teams[1-game.match.half].id,{runnerIds:[game.batter.id,...game.match.bases.filter(Boolean)]}),renderer.prepareOpposing(game.batter.id,game.teams[1-game.match.half].players.find(p=>p.position=== 'C').id)]);if(token!==loadEpoch||current!==game||game.paused)return;const changeSides=game.event?.halfEnded;lastField=null;effects.clear();start?game.start():game.next();
   if(start)pacing.begin({resumed});else if(changeSides&&!game.match.over)pacing.begin({changeSides:true});
   last=performance.now();}
  catch{loadError='Character images could not load. Tap again to retry.';}

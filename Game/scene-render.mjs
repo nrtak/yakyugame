@@ -4,7 +4,7 @@ import {playerById} from './rosters.mjs';
 import {projectPitch} from './pitch-types.mjs';
 import {APPROVED_FIELD_ASSETS,APPROVED_FIELD_CAST,approvedFieldPose} from './field-atlas.mjs';
 import {OPPOSING_ASSETS,CATCHER_CAST,opposingBatterPose,catcherPose,opposingArtKeys,catcherAction,catcherFieldPose} from './opposing-art.mjs';
-import {RUNNING_ASSETS,liveRunnerPose,runningArtKeysForDefense,runningFrameDefinitions} from './running-art.mjs';
+import {RUNNING_ASSETS,liveRunnerPose,runningArtKeysForDefense,runningArtKeysForPlayers,runningFrameDefinitions} from './running-art.mjs';
 import {DEFENSIVE_PITCH_ASSETS,DEFENSIVE_PITCH_CAST,defensivePitcherPose,defensivePitcherFrame,defensivePitcherIdle,defensivePitcherPoint,defensiveRelease} from './pitching-art.mjs';
 import {DEFENSE_BATTING_ASSETS,defenseBatterPose,defenseBatterKeys,defensiveBatterFrame} from './defense-batting-art.mjs';
 import {usesFieldView,fieldPlay} from './field-camera.mjs';
@@ -205,17 +205,18 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
  defenseSets['coral-club'].push('coralCatcherThrow');
  defenseSets['navy-stars'].push('navyCatcherThrow');
  for(const team of Object.keys(defenseSets))defenseSets[team].push(...runningArtKeysForDefense(team),...fieldMotionArtKeys(team),...fieldControlArtKeys(team),...fieldThrowArtKeys(team),...fieldReceiveArtKeys(team),...fieldRelayArtKeys(team),...secondBaseArtKeys(team),...secondPivotArtKeys(team));
- const batterKeys=new Set(Object.values(BATTER_CAST).flatMap(p=>[p.ready,p.motion])),venueKeys=new Set(Object.values(STADIUM_ART)),defenseKeys=new Set(Object.values(defenseSets).flat()),opposingKeys=new Set([...Object.keys(OPPOSING_ASSETS),...Object.keys(DEFENSE_BATTING_ASSETS)]),pinned=Object.keys(SCENE_ASSETS).filter(key=>!key.startsWith('menu')&&!batterKeys.has(key)&&!venueKeys.has(key)&&!defenseKeys.has(key)&&!opposingKeys.has(key));
- let recent=['coral-club-emma'],currentVenue='navyScenery',currentDefense=[],currentOpposing=[];const failedCharacters=new Set();const ready=bank.load([...pinned,'batterReady','batterMotion',currentVenue]);
- function retainArt(){bank.retain([...pinned,currentVenue,...currentDefense,...currentOpposing,...recent.flatMap(x=>[BATTER_CAST[x].ready,BATTER_CAST[x].motion])]);}
- async function prepareOpposing(batterId,catcherId){currentOpposing=[...opposingArtKeys(null,catcherId),...defenseBatterKeys(batterId)];await bank.load(currentOpposing);retainArt();}
- async function prepareDefense(id){const keys=defenseSets[id];if(!keys)throw Error('Unknown defending team');currentDefense=keys;await bank.load(keys);retainArt();}
- async function prepareVenue(id){const key=STADIUM_ART[id];if(!key)return;currentVenue=key;await bank.load([key]);retainArt();}
+ const homePitcherKeys=id=>Array.from({length:5},(_,i)=>characterPitcherPose(id,i)?.asset).filter(Boolean),allHomePitcherKeys=new Set([...homePitcherKeys('coral-club-emma'),...homePitcherKeys('navy-stars-ryan')]),allRunnerKeys=new Set(Object.keys(RUNNING_ASSETS));
+ const batterKeys=new Set(Object.values(BATTER_CAST).flatMap(p=>[p.ready,p.motion])),venueKeys=new Set(Object.values(STADIUM_ART)),defenseKeys=new Set(Object.values(defenseSets).flat()),opposingKeys=new Set([...Object.keys(OPPOSING_ASSETS),...Object.keys(DEFENSE_BATTING_ASSETS)]),pinned=Object.keys(SCENE_ASSETS).filter(key=>!key.startsWith('menu')&&!allRunnerKeys.has(key)&&!allHomePitcherKeys.has(key)&&!batterKeys.has(key)&&!venueKeys.has(key)&&!defenseKeys.has(key)&&!opposingKeys.has(key));
+ let recent=['coral-club-emma'],currentVenue='navyScenery',currentDefense=[],currentOpposing=[],currentPitcherKeys=homePitcherKeys('navy-stars-ryan');const failedCharacters=new Set();const ready=bank.load([...pinned,'batterReady','batterMotion',currentVenue,...currentPitcherKeys]);
+ function retainArt(){bank.retain([...pinned,currentVenue,...currentPitcherKeys,...currentDefense,...currentOpposing,...recent.flatMap(x=>[BATTER_CAST[x].ready,BATTER_CAST[x].motion])]);}
+ async function prepareOpposing(batterId,catcherId){currentOpposing=[...opposingArtKeys(null,catcherId),...defenseBatterKeys(batterId)];retainArt();await bank.load(currentOpposing);retainArt();}
+ async function prepareDefense(id,{runnerIds}={}){let keys=defenseSets[id];if(!keys)throw Error('Unknown defending team');if(Array.isArray(runnerIds)){const all=new Set(runningArtKeysForDefense(id));keys=[...keys.filter(k=>!all.has(k)),...runningArtKeysForPlayers(runnerIds.filter(r=>!r.startsWith(id+'-')))];}currentDefense=keys;retainArt();await bank.load(keys);retainArt();}
+ async function prepareVenue(id){const key=STADIUM_ART[id];if(!key)return;currentVenue=key;retainArt();await bank.load([key]);retainArt();}
  async function prepareBatter(id,hand){const cast=BATTER_CAST[id];if(!cast||!characterBatterPose(id,hand,0))return;
   // Recency follows the requested lineup, not network completion order. An old
   // request finishing late must not evict the player currently on screen.
-  recent=[...recent.filter(x=>x!==id),id].slice(-2);
-  try{await bank.load([cast.ready,cast.motion]);failedCharacters.delete(id);retainArt();}
+  recent=[...recent.filter(x=>x!==id),id].slice(-2);currentPitcherKeys=homePitcherKeys(id.startsWith('navy-stars-')?'coral-club-emma':'navy-stars-ryan');retainArt();
+  try{await bank.load([cast.ready,cast.motion,...currentPitcherKeys]);failedCharacters.delete(id);retainArt();}
   catch(error){failedCharacters.add(id);throw error;}
  }
  function oval(x,y,rx,ry,color){c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fillStyle=color;c.fill();}

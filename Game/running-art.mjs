@@ -43,5 +43,6 @@ export function runningArtKeysForDefense(teamId){
  if(!['coral-club','navy-stars'].includes(teamId))return[];
  return [...new Set(Object.values(RUNNING_CAST).filter(c=>c.teamId!==teamId).flatMap(c=>Object.values(c.legs).flatMap(leg=>Object.values(leg).map(p=>p.asset))))];
 }
+export function runningArtKeysForPlayers(ids){return [...new Set(ids.flatMap(id=>Object.values(RUNNING_CAST[id]?.legs??{}).flatMap(leg=>Object.values(leg).map(p=>p.asset))))];}
 export function runningCoverage(id){return Object.keys(RUNNING_CAST[id]?.legs??{}).map(key=>key==='0:1'?'home-to-first':key);}
 export function runningFrameDefinitions(id){return Object.entries(RUNNING_CAST[id]?.legs??{}).flatMap(([leg,poses])=>Object.entries(poses).map(([action,pose])=>({leg,action,pose})));}

@@ -8,7 +8,7 @@ export function createFieldingPracticeUI({renderer,defenseControls,overlay,showM
  for(const t of TEAMS){const o=document.createElement('option');o.value=t.id;o.textContent=t.name;$('fielding-team').append(o);}
  function stop(){epoch++;session=null;signature='';summaryShown=false;$('fielding-start').disabled=false;}
  async function start(){const token=++epoch,teamId=$('fielding-team').value;$('fielding-start').disabled=true;$('fielding-error').textContent='';
-  try{await renderer.ready;await renderer.prepareDefense(teamId);if(token!==epoch)return;
+  try{await renderer.ready;await renderer.prepareDefense(teamId,{runnerIds:TEAMS.find(t=>t.id!==teamId).players.slice(0,2).map(p=>p.id)});if(token!==epoch)return;
    onStart();session=new FieldingPractice({teamId});session.start();session.paused=document.hidden;signature='';summaryShown=false;update();
   }catch{if(token===epoch)$('fielding-error').textContent='The field images could not load. Tap Start to try again.';}
   finally{if(token===epoch)$('fielding-start').disabled=false;}
