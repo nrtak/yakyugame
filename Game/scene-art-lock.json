@@ -1,6 +1,6 @@
 {
-  "status": "user-authorized-feedback-release-2026-11-02",
-  "note": "User requested upload of the current feedback fixes to GitHub and TestFlight, including the derived Emma pitching correction. Previously held unrelated artwork remains excluded. Integrity is not anatomy certification.",
+  "status": "user-authorized-feedback-release-2026-11-03",
+  "note": "Current assets retained at user request. Full-height play area, safe controls, delivery timing and depth-order fixes. New 3D repairs remain deferred; no new artwork is included. Integrity is not anatomy certification.",
   "assets": {
     "assets/scene-mia-fly-return-v1.png": "b444c7ae081c4e76e40302235729eea6f699703322fb02c6d74df4fdc7932bd2",
     "assets/scene-ken-sora-throw-v1.png": "f66f85111185c0546ec2eb307fb2b134e08ba7b6359aa12df78ec14ab8b8f56f",

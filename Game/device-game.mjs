@@ -2,7 +2,7 @@ import {cpuDifficulty} from './cpu-difficulty.mjs';
 import {InningController} from './inning-controller.mjs';
 import {TEAMS,currentBatter,currentPitcher,makeMatchPitch,cpuBat,matchTeams} from './match-engine.mjs';
 import {venueName} from './rosters.mjs';
-import {judgeSwing,judgeTake,SWING_LEAD,seededRandom} from './engine.mjs';
+import {judgeSwing,judgeTake,SWING_LEAD,seededRandom,PITCH_WINDUP_SECONDS} from './engine.mjs';
 import {pitcherRepertoire} from './pitch-types.mjs';
 export const GAME_FORMATS={1:'Practice Inning',3:'Quick Game',7:'Regular Game',9:'Regular Game'};
 export function gameFormatLabel(innings){return (GAME_FORMATS[innings]??'Exhibition Game')+' · '+innings+' inning'+(innings===1?'':'s');}
@@ -46,7 +46,7 @@ export class DeviceGame {
   if(!Number.isFinite(dt)||dt<0)throw Error('Invalid game time');if(this.paused||['menu','final','pitch-ready'].includes(this.phase))return;
   if(this.phase==='review'){this.clock+=Math.min(.05,dt);return;}
   dt=Math.min(.05,dt);this.clock+=dt;
-  if(this.phase==='windup'&&this.clock>=.72){this.phase='flight';this.clock=0;this.elapsed=0;}
+  if(this.phase==='windup'&&this.clock>=PITCH_WINDUP_SECONDS){this.phase='flight';this.clock=0;this.elapsed=0;}
   else if(this.phase==='flight'){
    this.elapsed+=dt;
    if(this.userBatting){

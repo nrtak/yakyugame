@@ -1,5 +1,5 @@
 import {createDerby,derbyPitch,applyDerbySwing,restoreDerby} from './home-run-derby.mjs';
-import {SWING_LEAD,judgeSwing} from './engine.mjs';
+import {SWING_LEAD,judgeSwing,PITCH_WINDUP_SECONDS} from './engine.mjs';
 import {TEAMS} from './rosters.mjs';
 import {PRACTICE_CAPTAINS} from './batting-practice.mjs';
 export const DERBY_HITTERS=[...TEAMS.flatMap(t=>t.players.filter(p=>p.captain).map(p=>({...p,team:t.name}))),...PRACTICE_CAPTAINS.map(p=>({...p,power:75}))];
@@ -14,7 +14,7 @@ export class DerbySession{
  swing(){if(this.paused||this.phase!=='flight'||this.swingAt!==null)return false;this.swingAt=this.elapsed;this.contact=judgeSwing(this.pitch,this.aim,this.elapsed+SWING_LEAD);return true;}
  step(dt){if(!Number.isFinite(dt)||dt<0)throw Error('Invalid Derby time');if(this.paused||['summary','turn-ready'].includes(this.phase))return;dt=Math.min(.05,dt);this.clock+=dt;
   if(this.phase==='ready'&&this.clock>=.85){this.phase='windup';this.clock=0;}
-  else if(this.phase==='windup'&&this.clock>=.72){this.phase='flight';this.clock=0;this.elapsed=0;}
+  else if(this.phase==='windup'&&this.clock>=PITCH_WINDUP_SECONDS){this.phase='flight';this.clock=0;this.elapsed=0;}
   else if(this.phase==='flight'){this.elapsed+=dt;if(this.elapsed>=Math.max(this.pitch.duration+.2,this.swingAt===null?0:this.swingAt+SWING_LEAD)){
    const turn=this.presentation;this.displayPlayer=this.player;this.displayPitch=this.pitch;const state=applyDerbySwing(this.state,{pitchId:this.pitch.id,swing:this.swingAt===null?null:{...this.aim,impactTime:this.swingAt+SWING_LEAD}});this.result=state.log.at(-1);this.displayTurn={stage:turn.stage,attempt:turn.attempt,limit:turn.limit,homeRuns:turn.homeRuns+(this.result.homeRun?1:0)};this.state=state;this.phase='result';this.clock=0;
   }}else if(this.phase==='result'&&this.clock>=1.7){this.phase=this.state.over?'summary':this.pitch.batterId!==this.displayPlayer.id||this.state.attempt===0?'turn-ready':'ready';this.clock=0;this.elapsed=0;this.swingAt=null;this.contact=null;this.aim={x:0,y:0};}

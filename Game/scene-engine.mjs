@@ -1,5 +1,5 @@
 import {FIELD_PLAY_DURATION,fieldPlay} from './field-camera.mjs';
-import {makeSession,judgeSwing,judgeTake,SWING_LEAD,summarize} from './engine.mjs';
+import {makeSession,judgeSwing,judgeTake,SWING_LEAD,summarize,PITCH_WINDUP_SECONDS} from './engine.mjs';
 export class BattingScene {
  constructor(seed=73){this.seed=seed;this.reset();}
  reset(){this.pitches=makeSession(this.seed,'standard');this.index=0;this.results=[];this.phase='intro';this.clock=0;this.elapsed=0;this.aim={x:0,y:0};this.swingAt=null;this.contact=null;this.balls=0;this.strikes=0;this.outs=0;this.paused=false;this.fieldResult=null;}
@@ -13,7 +13,7 @@ export class BattingScene {
   if(this.phase==='camera-review'){if(this.clock>=FIELD_PLAY_DURATION)this.reset();return;}
   if(this.phase==='hit'&&!this.fieldResult){const f=fieldPlay(this);if(f.call){this.fieldResult=f.outcome;this.result.fieldOutcome=f.outcome;this.result.title=f.flyBall?'Fly out':f.outcome==='out'?'Out at first':'Safe at first';if(f.outcome==='out')this.outs++;}}
   if(this.phase==='ready'&&this.clock>=.85){this.phase='windup';this.clock=0;}
-  else if(this.phase==='windup'&&this.clock>=.72){this.phase='flight';this.clock=0;this.elapsed=0;}
+  else if(this.phase==='windup'&&this.clock>=PITCH_WINDUP_SECONDS){this.phase='flight';this.clock=0;this.elapsed=0;}
   else if(this.phase==='flight'){this.elapsed+=dt;const impact=this.swingAt===null?Infinity:this.swingAt+SWING_LEAD;
    if(this.contact&&['hit','foul'].includes(this.contact.kind)&&this.elapsed>=impact)this.finish(this.contact);
    else if(this.elapsed>=Math.max(this.pitch.duration+.2,Number.isFinite(impact)?impact:0))this.finish(this.contact??judgeTake(this.pitch));
@@ -23,4 +23,4 @@ export class BattingScene {
  }
 }
 export function swingFrame(s){if(s.swingAt===null)return 0;const t=s.elapsed-s.swingAt+(['hit','result'].includes(s.phase)?s.clock:0)+1e-8;return t<.045?0:t<SWING_LEAD?1:t<.24?2:t<.64?3:0;}
-export function pitcherFrame(s){if(s.phase==='windup')return s.clock<.16?0:s.clock<.49?1:2;if(s.phase==='flight')return s.elapsed<.3?3:4;if(['hit','result'].includes(s.phase))return 4;return 0;}
+export function pitcherFrame(s){const t=s.clock*.72/PITCH_WINDUP_SECONDS;if(s.phase==='windup')return t<.16?0:t<.49?1:2;if(s.phase==='flight')return s.elapsed<.3?3:4;if(['hit','result'].includes(s.phase))return 4;return 0;}

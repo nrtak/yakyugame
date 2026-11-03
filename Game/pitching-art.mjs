@@ -1,11 +1,12 @@
 // Separate defensive camera drawings. The old batting camera has its own art.
 // Positive uniform scales only; hands and cameras are never reflected.
 import{pitcherFrame}from'./scene-engine.mjs';
+import{PITCH_WINDUP_SECONDS}from'./engine.mjs';
 import{EMMA_NATIVE_PITCH}from'./native-pitch-data.mjs';
 export const NATIVE_PITCH_ASSETS={defenseEmmaNative:EMMA_NATIVE_PITCH.rear.asset,emmaPitchNative:EMMA_NATIVE_PITCH.front.asset};
 export const NATIVE_PITCH_RELEASE_FRAME=42;
 export function nativePitchFrame(s){
- if(s.phase==='windup')return Math.min(41,1+Math.max(0,s.clock)/.72*41);
+ if(s.phase==='windup')return Math.min(41,1+Math.max(0,s.clock)/PITCH_WINDUP_SECONDS*41);
  if(s.phase==='flight')return Math.min(73,NATIVE_PITCH_RELEASE_FRAME+Math.max(0,s.elapsed)/.62*31);
  return ['hit','result'].includes(s.phase)?73:1;
 }
@@ -94,7 +95,8 @@ export function defensivePitcherPose(id,hand,frame){
 // and the separate batting camera retain their own phase selection.
 export function defensivePitcherFrame(s){
  if(s.pitcherId!=='navy-stars-ryan'||s.pitcherHand!=='R')return pitcherFrame(s);
- if(s.phase==='windup')return s.clock<.16?0:s.clock<.36?1:s.clock<.51?9:s.clock<.63?2:5;
+ const t=s.clock*.72/PITCH_WINDUP_SECONDS;
+ if(s.phase==='windup')return t<.16?0:t<.36?1:t<.51?9:t<.63?2:5;
  if(s.phase==='flight')return s.elapsed<.055?3:s.elapsed<.14?6:s.elapsed<.30?4:s.elapsed<.50?7:8;
  if(['hit','result'].includes(s.phase))return 8;
  return 0;

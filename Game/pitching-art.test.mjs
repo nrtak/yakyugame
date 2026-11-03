@@ -4,6 +4,8 @@ import {pitchingPosition} from './scene-render.mjs';
 import {pitchingActorPose,PITCHING_GEOMETRY} from './scene-render.mjs';
 import {catcherPose} from './opposing-art.mjs';
 import {playerById} from './rosters.mjs';
+import {PITCH_WINDUP_SECONDS} from './engine.mjs';
+const deliveryClock=t=>t*PITCH_WINDUP_SECONDS/.72;
 test('defensive deliveries retain their own fixed roster hands and positive uncrossed crops',()=>{
  for(const [id,cast]of Object.entries(DEFENSIVE_PITCH_CAST)){
   const player=playerById(id);assert.equal(cast.throws,player.throws);assert.notEqual(cast.gloveHand,cast.throws);
@@ -48,12 +50,12 @@ test('reference-look Ryan idle keeps its own ball and right pivot through the ga
 });
 
 test('Ryan rear delivery passes rapidly from arm acceleration through release and deceleration',()=>{
- const state={pitcherId:'navy-stars-ryan',pitcherHand:'R',phase:'windup',clock:.60};
+ const state={pitcherId:'navy-stars-ryan',pitcherHand:'R',phase:'windup',clock:deliveryClock(.60)};
  assert.equal(defensivePitcherFrame(state),2);
- assert.equal(defensivePitcherFrame({...state,clock:.685}),5);
+ assert.equal(defensivePitcherFrame({...state,clock:deliveryClock(.685)}),5);
  for(const[elapsed,frame]of[[0,3],[.054,3],[.055,6],[.139,6],[.14,4],[.299,4],[.3,7],[.499,7],[.5,8],[1,8]])assert.equal(defensivePitcherFrame({...state,phase:'flight',elapsed}),frame);
  // Ryan's extra painted drawings must not select nonexistent Emma frames.
- assert.equal(defensivePitcherFrame({...state,pitcherId:'coral-club-emma',pitcherHand:'L',clock:.685}),2);
+ assert.equal(defensivePitcherFrame({...state,pitcherId:'coral-club-emma',pitcherHand:'L',clock:deliveryClock(.685)}),2);
  assert.equal(defensivePitcherFrame({...state,pitcherId:'coral-club-emma',pitcherHand:'L',phase:'flight',elapsed:.09}),3);
 });
 
@@ -75,7 +77,7 @@ test('Ryan corrective frames keep the planted left sole and a single baseball ow
 
 test('Ryan shows backward arm extension before the hand rises and accelerates forward',()=>{
  const state={pitcherId:'navy-stars-ryan',pitcherHand:'R',phase:'windup'};
- for(const[clock,frame]of[[.30,1],[.359,1],[.36,9],[.44,9],[.509,9],[.51,2],[.629,2],[.63,5]])assert.equal(defensivePitcherFrame({...state,clock}),frame);
+ for(const[clock,frame]of[[.30,1],[.359,1],[.36,9],[.44,9],[.509,9],[.51,2],[.629,2],[.63,5]])assert.equal(defensivePitcherFrame({...state,clock:deliveryClock(clock)}),frame);
  const back=defensivePitcherPose(state.pitcherId,'R',9),stride=defensivePitcherPose(state.pitcherId,'R',2),acceleration=defensivePitcherPose(state.pitcherId,'R',5),release=defensiveRelease('R');
  assert.equal(back.throws,'R');assert.equal(back.gloveHand,'L');assert.equal(back.support,'R');assert.deepEqual(back.world,stride.world);assert.equal(back.containsBall,false);assert.equal(back.ballVisible,true);
  const points=[back,stride,acceleration].map(p=>defensivePitcherPoint(p,p.hand));

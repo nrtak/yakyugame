@@ -1,5 +1,6 @@
 // Pure batting rules shared by the playable prototype and its tests.
 export const SWING_LEAD = 0.14; // Visible input-to-contact swing, shared by scoring and rendering.
+export const PITCH_WINDUP_SECONDS = 1.12;
 export const SESSION_LENGTH = 10;
 export const SPEEDS = { relaxed: 1.65, standard: 1.25, quick: 0.98 };
 export const ZONE = { halfWidth: 1, halfHeight: 1 };

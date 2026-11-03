@@ -300,6 +300,10 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
   c.textAlign='center';c.font='bold 24px system-ui';c.fillStyle='#173747';
   if(!catcherDrawn)c.fillText(s.catcherName??'Catcher',1010,310);
   if(!batterDrawn){const x=s.batterHand==='L'?860:1270;oval(x,420,38,38,'#cc625a');c.fillText(s.batterName+' · '+s.batterHand+' BAT',x,470);c.font='18px system-ui';c.fillText('New camera artwork pending',x,500);}
+  // The pitch travels away from this camera. Paint it behind the foreground
+  // pitcher so a hidden release hand cannot put a ball over the head/jersey.
+  if(s.phase==='flight'&&s.pitch){const p=pitchingPosition(s.pitch,s.elapsed,s.pitcherHand);ball(p.x,p.y,p.r);}
+  if(s.phase==='hit'&&s.pitch){const at=pitchingPosition(s.pitch,s.elapsed,s.pitcherHand);ball(at.x,at.y,6);}
   const delivery=nativePitcherPose(s,'rear')??(['pitch-ready','ready','intro'].includes(s.phase)?defensivePitcherIdle(s.pitcherId,s.pitcherHand):null)??defensivePitcherPose(s.pitcherId,s.pitcherHand,defensivePitcherFrame(s));
   if(delivery){
    oval(delivery.world[0],delivery.world[1]+3,48,9,'#173b3e26');
@@ -310,9 +314,6 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
   c.textAlign='start';
   const z=PITCHING_GEOMETRY.zone;c.strokeStyle='#fff9';c.lineWidth=3;c.strokeRect(z.x-z.rx,z.y-z.ry,z.rx*2,z.ry*2);
   const tx=z.x-s.aim.x*z.rx,ty=z.y-s.aim.y*z.ry;c.strokeStyle='white';c.beginPath();c.arc(tx,ty,28,0,Math.PI*2);c.stroke();
-  if(s.phase==='flight'&&s.pitch){const p=pitchingPosition(s.pitch,s.elapsed,s.pitcherHand);ball(p.x,p.y,p.r);}
-  // Brief contact hold, then the raised view uses the actual batted-ball path.
-  if(s.phase==='hit'&&s.pitch){const at=pitchingPosition(s.pitch,s.elapsed,s.pitcherHand);ball(at.x,at.y,6);}
   // A received/taken pitch is no longer in free flight. Do not teleport its
   // visible ball from the actual target to an unrelated fixed glove landmark.
  }
