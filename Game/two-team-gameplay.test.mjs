@@ -56,10 +56,12 @@ test('both clubs complete scoring games through judged swings, live defense, pau
    if(g.phase==='review'){
     for(let side=0;side<2;side++){assert.equal(g.match.score[side],g.match.lineScore[side].reduce((n,x)=>n+(x??0),0));assert.equal(g.match.score[side],g.teams[side].players.reduce((n,p)=>n+g.match.stats[p.id].r,0));}
     const snapshot=captureMatchCheckpoint(g);
-    if(!resumed&&snapshot&&(g.match.score.some(n=>n>0)||g.match.bases.some(Boolean))){const before=structuredClone(g.match);g=resumeMatchCheckpoint(JSON.parse(JSON.stringify(snapshot)));assert.deepEqual(g.match,before);g.start();resumed=true;}else g.next();
+    // A walk-off may be the first score. Exercise saving at the first safe
+    // review rather than requiring a nonterminal hit for this test seed.
+    if(!resumed&&snapshot){const before=structuredClone(g.match);g=resumeMatchCheckpoint(JSON.parse(JSON.stringify(snapshot)));assert.deepEqual(g.match,before);g.start();resumed=true;}else g.next();
    }else g.step(.005);
   }
-  assert.equal(g.phase,'final',teamId+' as '+homeTeamId+' home');assert.ok(g.match.score.some(n=>n>0),JSON.stringify({teamId,homeTeamId,plays:g.match.log.map(e=>[e.batterName,e.kind])}));assert.ok(sawField&&paused&&resumed);assert.equal(swings,2);
+  assert.equal(g.phase,'final',teamId+' as '+homeTeamId+' home');assert.ok(g.match.score.some(n=>n>0),JSON.stringify({teamId,homeTeamId,plays:g.match.log.map(e=>[e.batterName,e.kind])}));assert.ok(sawField&&paused&&resumed,JSON.stringify({teamId,homeTeamId,sawField,paused,resumed,swings}));assert.equal(swings,2);
   assert.equal(g.match.pitchNumber,g.match.log.length);assert.equal(g.match.log.filter(e=>e.batter===g.teams[g.teams.findIndex(t=>t.id===teamId)].players[0].id&&e.atBatEnded).length,1);
   for(const e of g.match.log){assert.ok(e.pitchKind);assert.ok(e.pitcherId);}
  }

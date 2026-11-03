@@ -44,6 +44,7 @@ export function pitchOffset(p,q){
 }
 export function projectPitch(p,t,release,zone,reverseX=false){
  const q=Math.max(0,Math.min(1,t/p.duration)),offset=pitchOffset(p,q),side=reverseX?-1:1;
+ if(q===1)return{x:zone.x+side*p.x*zone.rx,y:zone.y-p.y*zone.ry,q,progress:1};
  // The same flight recedes quickly from the mound camera and approaches the
  // hitter with increasing apparent speed. It never restarts at a new landmark.
  const progress=q===0||q===1?q:reverseX?q/(.42+.58*q):.42*q/(1-.58*q);

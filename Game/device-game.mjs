@@ -2,7 +2,7 @@ import {cpuDifficulty} from './cpu-difficulty.mjs';
 import {InningController} from './inning-controller.mjs';
 import {TEAMS,currentBatter,currentPitcher,makeMatchPitch,cpuBat,matchTeams} from './match-engine.mjs';
 import {venueName} from './rosters.mjs';
-import {judgeSwing,judgeTake,SWING_LEAD} from './engine.mjs';
+import {judgeSwing,judgeTake,SWING_LEAD,seededRandom} from './engine.mjs';
 import {pitcherRepertoire} from './pitch-types.mjs';
 export const GAME_FORMATS={1:'Practice Inning',3:'Quick Game',7:'Regular Game',9:'Regular Game'};
 export function gameFormatLabel(innings){return (GAME_FORMATS[innings]??'Exhibition Game')+' · '+innings+' inning'+(innings===1?'':'s');}
@@ -32,7 +32,15 @@ export class DeviceGame {
  finishPitch(outcome){this.event=this.inning.pitchResult({...outcome,...(this.pitch?{pitchKind:this.pitch.kind}:{})});this.clock=0;this.phase='review';}
  beginFair(contact){
   const verticalOffset=this.userBatting?this.aim.y-this.pitch.y:Math.sin(this.match.pitchNumber*2.37)*.5;
-  this.inning.beginFlight({...contact,verticalOffset},{pitchKind:this.pitch?.kind});this.phase='field';this.clock=0;this.autoClock=0;
+  // Aim is a contact window, not a perfectly repeatable bat/ball collision.
+  // Resolve the unobserved barrel angle and contact point once per pitch. Only
+  // flight inputs vary: fielders and baserunners still determine the outcome.
+  const random=seededRandom(this.match.seed+this.match.pitchNumber*1103+739);
+  random();random(); // Mix adjacent saved seeds before sampling the barrel.
+  const launchAngle=contact.launchAngle??18-verticalOffset*50+(random()-.5)*32;
+  const timing=(contact.timingMs??0)/140*(this.batter.bats==='L'?-1:1);
+  const direction=contact.direction??Math.max(-.85,Math.min(.85,timing+(random()-.5)*.8+(this.pitch?.x??0)*.18));
+  this.inning.beginFlight({...contact,verticalOffset,launchAngle,direction},{pitchKind:this.pitch?.kind});this.phase='field';this.clock=0;this.autoClock=0;
  }
  step(dt){
   if(!Number.isFinite(dt)||dt<0)throw Error('Invalid game time');if(this.paused||['menu','final','pitch-ready'].includes(this.phase))return;

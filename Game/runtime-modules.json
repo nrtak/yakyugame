@@ -36,6 +36,7 @@
     "rig-running-data.mjs",
     "rig-running.mjs",
     "running-art.mjs",
+    "native-pitch-data.mjs",
     "pitching-art.mjs",
     "defense-batting-art.mjs",
     "field-motion.mjs",

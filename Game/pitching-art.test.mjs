@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {DEFENSIVE_PITCH_CAST,DEFENSIVE_PITCH_ASSETS,DEFENSIVE_PITCH_CAMERA,defensivePitcherPose,defensivePitcherFrame,defensivePitcherIdle,defensivePitcherPoint,defensiveRelease} from './pitching-art.mjs';
+import {DEFENSIVE_PITCH_CAST,DEFENSIVE_PITCH_ASSETS,DEFENSIVE_PITCH_CAMERA,defensivePitcherPose,defensivePitcherFrame,defensivePitcherIdle,defensivePitcherPoint,defensiveRelease,nativePitcherPose} from './pitching-art.mjs';
 import {pitchingPosition} from './scene-render.mjs';
 import {pitchingActorPose,PITCHING_GEOMETRY} from './scene-render.mjs';
 import {catcherPose} from './opposing-art.mjs';
@@ -28,7 +28,7 @@ test('pivot is fixed through gather/load and the stride landing stays fixed thro
 });
 test('flight begins at the authored open throwing fingers, with no second baked-in ball',()=>{
  for(const [id,cast]of Object.entries(DEFENSIVE_PITCH_CAST)){
-  const p=defensivePitcherPose(id,cast.throws,3),expected=defensivePitcherPoint(p,p.hand),flight=pitchingPosition({duration:1.3,x:0,y:0,bend:0},0,cast.throws);
+  const p=nativePitcherPose({pitcherId:id,pitcherHand:cast.throws,phase:'flight',elapsed:0})??defensivePitcherPose(id,cast.throws,3),expected=defensivePitcherPoint(p,p.hand),flight=pitchingPosition({duration:1.3,x:0,y:0,bend:0},0,cast.throws);
   assert.deepEqual(defensiveRelease(cast.throws),expected);assert.equal(flight.x,expected.x);assert.equal(flight.y,expected.y);
  }
 });

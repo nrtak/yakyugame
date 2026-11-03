@@ -1,6 +1,24 @@
 // Separate defensive camera drawings. The old batting camera has its own art.
 // Positive uniform scales only; hands and cameras are never reflected.
 import{pitcherFrame}from'./scene-engine.mjs';
+import{EMMA_NATIVE_PITCH}from'./native-pitch-data.mjs';
+export const NATIVE_PITCH_ASSETS={defenseEmmaNative:EMMA_NATIVE_PITCH.rear.asset,emmaPitchNative:EMMA_NATIVE_PITCH.front.asset};
+export const NATIVE_PITCH_RELEASE_FRAME=42;
+export function nativePitchFrame(s){
+ if(s.phase==='windup')return Math.min(41,1+Math.max(0,s.clock)/.72*41);
+ if(s.phase==='flight')return Math.min(73,NATIVE_PITCH_RELEASE_FRAME+Math.max(0,s.elapsed)/.62*31);
+ return ['hit','result'].includes(s.phase)?73:1;
+}
+export function nativePitcherPose(s,view='rear'){
+ if(s.pitcherId!=='coral-club-emma'||s.pitcherHand!=='L')return null;
+ const clip=EMMA_NATIVE_PITCH[view],f=nativePitchFrame(s);
+ const row=clip.frames.reduce((best,row)=>Math.abs(row.frame-f)<Math.abs(best.frame-f)?row:best,clip.frames[0]);
+ return {...row,asset:view==='rear'?'defenseEmmaNative':'emmaPitchNative',sourceWidth:clip.size[0],world:view==='rear'?[300,900]:[957,546],scale:view==='rear'?2.35:1.5,throws:'L',gloveHand:'R',containsBall:row.frame<NATIVE_PITCH_RELEASE_FRAME,ballVisible:false};
+}
+export function nativePitchRelease(view='rear'){
+ const p=nativePitcherPose({pitcherId:'coral-club-emma',pitcherHand:'L',phase:'flight',elapsed:0},view);
+ return defensivePitcherPoint(p,p.hand);
+}
 export const DEFENSIVE_PITCH_ASSETS={defensePitchPark:'assets/scene-defense-pitching-park-v2.png',defenseRyanIdle:'assets/scene-reference-ryan-idle-v1.png'};
 // Lateral camera parallax in the painted scene: move the near pitcher left
 // while keeping the distant plate/batter/catcher registration fixed. No sprite
@@ -47,6 +65,8 @@ const ryan=[
 // Source construction owns each support sole. The pivot is now the right shoe
 // in the approved rear idle; the left landing remains fixed after the stride.
 for(const p of ryan)p.world=p.support==='R'?[ryanPivot.x,ryanPivot.y]:[...ryanLanding];
+// Historical drawing registrations retained for old review/coverage tools.
+// Live Emma pitching uses nativePitcherPose; these drawings are not donors.
 const emma=[
  {size:[1412,1498],rect:[0,0,1412,1498],anchor:[665,1103],world:[330,900],scale:1.01,support:'L',hand:[803,487],otherFoot:[850,1096]},
  {size:[1405,1505],rect:[0,0,1405,1505],anchor:[710,1218],world:[330,900],scale:.8,support:'L',hand:[806,380]},
@@ -81,6 +101,7 @@ export function defensivePitcherFrame(s){
 }
 export function defensivePitcherPoint(p,point){return{x:p.world[0]+(point[0]-p.anchor[0])*p.scale,y:p.world[1]+(point[1]-p.anchor[1])*p.scale};}
 export function defensiveRelease(hand){
+ if(hand==='L')return nativePitchRelease('rear');
  const id=hand==='R'?'navy-stars-ryan':'coral-club-emma',p=defensivePitcherPose(id,hand,3);
  return p?defensivePitcherPoint(p,p.hand):null;
 }

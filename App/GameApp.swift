@@ -19,6 +19,7 @@ struct GameHost: UIViewControllerRepresentable {
 final class GameViewController: UIViewController, WKNavigationDelegate {
     private var webView: WKWebView!
     private let errorLabel = UILabel()
+    private var lastGameSafeArea: UIEdgeInsets?
 
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation { .landscapeRight }
@@ -73,15 +74,43 @@ final class GameViewController: UIViewController, WKNavigationDelegate {
         webView?.evaluateJavaScript("window.GameLifecycle?.pause();", completionHandler: nil)
     }
 
-    #if DEBUG
-    // CI drives the real interface; this path is absent from Release builds.
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        updateGameSafeArea()
+    }
+
+    private func updateGameSafeArea(force: Bool = false) {
+        guard webView != nil else { return }
+        let area = view.window?.safeAreaInsets ?? view.safeAreaInsets
+        if !force && lastGameSafeArea == area { return }
+        lastGameSafeArea = area
+        // The WebView fills the window. Supply actual native insets rather
+        // than relying on WebKit to infer them from SwiftUI's host layout.
+        let script = """
+        (() => {
+          const style = document.documentElement?.style;
+          if (!style) return;
+          style.setProperty('--safe-top', '\(area.top)px');
+          style.setProperty('--safe-right', '\(area.right)px');
+          style.setProperty('--safe-bottom', '\(area.bottom)px');
+          style.setProperty('--safe-left', '\(area.left)px');
+        })()
+        """
+        webView.evaluateJavaScript(script, completionHandler: nil)
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        updateGameSafeArea(force: true)
+        #if DEBUG
         guard let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--capture-scene=") }),
               let scene = argument.split(separator: "=").last.map(String.init),
               ["menu", "batting", "competitions"].contains(scene) else { return }
         pollCapture(scene: scene, attempts: 180)
+        #endif
     }
 
+    #if DEBUG
+    // CI drives the real interface; this path is absent from Release builds.
     private func pollCapture(scene: String, attempts: Int) {
         guard attempts > 0 else { return }
         let script = """

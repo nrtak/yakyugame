@@ -3,8 +3,9 @@ import{characterPitchRelease,pitchPosition,SCENE_GEOMETRY,characterPitcherPose,S
 import{liveRunnerPose,runningArtKeysForDefense,runningCoverage}from'./running-art.mjs';
 import{liveFieldPose,liveBallPoint,poseLandmark,poseGround}from'./live-field-art.mjs';
 import{GroundDefense}from'./defense-play.mjs';
+import{nativePitchRelease}from'./pitching-art.mjs';
 test('home-camera pitches and speed trails begin at the correct own throwing hand',()=>{
- const p={duration:.68,kind:'fast',x:0,y:0,bend:0};for(const[id,expected,support]of[['navy-stars-ryan',{x:823.5,y:393.75},'L'],['coral-club-emma',{x:839.25,y:369},'R']]){assert.deepEqual(characterPitchRelease(id),expected);const start=pitchPosition(p,0,id);assert.equal(start.x,expected.x);assert.equal(start.y,expected.y);assert.equal(characterPitcherPose(id,3).support,support);const end=pitchPosition(p,p.duration,id);assert.equal(end.x,SCENE_GEOMETRY.zone.x);assert.equal(end.y,SCENE_GEOMETRY.zone.y);}
+ const p={duration:.68,kind:'fast',x:0,y:0,bend:0};for(const[id,expected,support]of[['navy-stars-ryan',{x:823.5,y:393.75},'L'],['coral-club-emma',nativePitchRelease('front'),'R']]){assert.deepEqual(characterPitchRelease(id),expected);const start=pitchPosition(p,0,id);assert.equal(start.x,expected.x);assert.equal(start.y,expected.y);assert.equal(characterPitcherPose(id,3).support,support);const end=pitchPosition(p,p.duration,id);assert.equal(end.x,SCENE_GEOMETRY.zone.x);assert.equal(end.y,SCENE_GEOMETRY.zone.y);}
  assert.equal(characterPitchRelease('other-player'),null);const overridden=pitchPosition({...p,release:{x:20,y:30}},0,'coral-club-emma');assert.equal(overridden.x,20);assert.equal(overridden.y,30);
 });
 test('raised field camera includes the active outfielder whole drawing with and without the control rail',()=>{

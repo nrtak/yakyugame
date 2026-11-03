@@ -1,6 +1,6 @@
 {
-  "status": "user-authorized-release-2026-11-02",
-  "note": "Exact reviewed rig animations approved for now; held artwork excluded. Integrity is not anatomy certification.",
+  "status": "user-authorized-feedback-release-2026-11-02",
+  "note": "User requested upload of the current feedback fixes to GitHub and TestFlight, including the derived Emma pitching correction. Previously held unrelated artwork remains excluded. Integrity is not anatomy certification.",
   "assets": {
     "assets/scene-mia-fly-return-v1.png": "b444c7ae081c4e76e40302235729eea6f699703322fb02c6d74df4fdc7932bd2",
     "assets/scene-ken-sora-throw-v1.png": "f66f85111185c0546ec2eb307fb2b134e08ba7b6359aa12df78ec14ab8b8f56f",
@@ -188,6 +188,8 @@
     "assets/scene-defense-emma-stride-v3.png": "3fa465282687c89c2a84cd2abdfaf90f36c4f6ebcf4fafc7850bc174775c9de2",
     "assets/scene-defense-emma-release-v5.png": "f5b4b769f3d604bed3c76d31de8e22876fb4feba2a393dbfcd48ef91e2524514",
     "assets/scene-defense-emma-recovery-v4.png": "4cfd367a27e9c5e63f44f24bd3b124398d1c3e497166672366555ffd2c7108b7",
+    "assets/scene-coral-club-emma-native-pitch-rear-11-02-v1.png": "22dac15a7bd762329ad9fd06a90e97faf7f7ddf3977e643cee0e1598759e9c54",
+    "assets/scene-coral-club-emma-native-pitch-front-11-02-v1.png": "efacc76c16f8ae5e80ee1b403ad4770d3ca3adae1a1f639f6751e546be42291c",
     "assets/scene-reference-emma-bat-ready-v2.png": "d8736fa25adf51b215b8942b73eae59115dbaf878d63011ff3f511a0b53b5455",
     "assets/scene-defense-ryan-bat-ready-third-v1.png": "f9f0658a0678fcffd0e12813c8f79e7a9dd6733f90d4bb3844522f506bb9cf80",
     "assets/menu-a3-emma-ryan-v1.png": "075c99af2c1521374927f73aed644b489d8272b0356175d5f88fa477ea780eb2",
