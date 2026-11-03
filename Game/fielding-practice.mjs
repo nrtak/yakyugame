@@ -1,6 +1,7 @@
 import{TEAMS}from'./rosters.mjs';
 import{GroundDefense}from'./defense-play.mjs';
 import{FlightDefense}from'./flight-defense.mjs';
+import{rigDefenseSettings}from'./rig-defense-settings.mjs';
 
 export const FIELDING_DRILLS=[
  {id:'shortstop',title:'Grounder to shortstop',hint:'Secure the ball, then throw to first.',target:{x:-40,y:115}},
@@ -23,7 +24,7 @@ export class FieldingPractice{
  get defense(){const s=this.play?.state??null;if(s&&this.drill.tagSequence)s.recommendation=this.play.retired.length===0?'1B':s.tagPending||s.canTag||s.throwToId===this.play.coverage['2B'].id?null:'2B';return s;}
  get summary(){return{drills:this.results.length,total:FIELDING_DRILLS.length,outs:this.results.reduce((n,r)=>n+r.outs,0),throws:this.results.reduce((n,r)=>n+r.throws.length,0),results:structuredClone(this.results)};}
  start(){if(this.paused||this.phase!=='ready')return false;
-  const d=this.drill,options={teamId:this.teamId,batterId:this.offense.players[0].id,bases:[d.runnerOnFirst?this.offense.players[1].id:null,null,null],outs:0};
+  const d=this.drill,options={...rigDefenseSettings(this.teamId),teamId:this.teamId,batterId:this.offense.players[0].id,bases:[d.runnerOnFirst?this.offense.players[1].id:null,null,null],...(d.tagSequence?{runnerTimes:{[this.offense.players[1].id]:6}}:{}),outs:0};
   this.play=d.contact?new FlightDefense({...options,contact:d.contact}):new GroundDefense({...options,target:{...d.target},ballTravel:d.ballTravel??1.5});
   this.phase='field';return true;
  }

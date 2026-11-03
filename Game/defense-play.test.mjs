@@ -94,7 +94,8 @@ test('routine coverage and backup routes clear runners with bases empty and load
 });
 test('safe batter-runners touch then run through first without receiving an extra base',()=>{
  const p=new GroundDefense();p.step(p.runnerTime);assert.deepEqual(p.state.runners[0].point,BASE_POINTS['1B']);p.step(.7);
- assert.ok(Math.hypot(p.state.runners[0].point.x-BASE_POINTS['1B'].x,p.state.runners[0].point.y-BASE_POINTS['1B'].y)>15.9);
+ assert.ok(Math.hypot(p.state.runners[0].point.x-BASE_POINTS['1B'].x,p.state.runners[0].point.y-BASE_POINTS['1B'].y)>10);assert.equal(p.finished,false);
+ p.step(1);assert.ok(Math.hypot(p.state.runners[0].point.x-BASE_POINTS['1B'].x,p.state.runners[0].point.y-BASE_POINTS['1B'].y)<16);assert.equal(p.finished,true);
  assert.deepEqual(p.resolution.destinations,[{id:'coral-club-emma',base:1}]);
 });
 test('a relay starts at the receiving player, and outs stay retired through later throws',()=>{

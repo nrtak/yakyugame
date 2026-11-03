@@ -1,6 +1,6 @@
-import { seededRandom, SPEEDS } from './engine.mjs';
+import { seededRandom } from './engine.mjs';
 import { TEAMS, allPlayers, playerById } from './rosters.mjs';
-import {PITCH_TYPES,pitcherRepertoire,pitchMovement} from './pitch-types.mjs';
+import {PITCH_TYPES,PITCH_FLIGHT_SECONDS,pitcherRepertoire,pitchMovement} from './pitch-types.mjs';
 import {cpuDifficulty} from './cpu-difficulty.mjs';
 import {tagContactValid} from './defense-tags.mjs';
 
@@ -10,7 +10,7 @@ export function createMatch({innings=3,seed=211,homeTeamId='navy-stars'}={}) {
   const teamIds=[TEAMS.find(t=>t.id!==homeTeamId).id,homeTeamId];
   return {innings,seed,teamIds,inning:1,half:0,outs:0,balls:0,strikes:0,bases:[null,null,null],score:[0,0],hits:[0,0],
     lineScore:[Array(innings).fill(null),Array(innings).fill(null)],order:[0,0],pitchNumber:0,over:false,winner:null,
-    lastPitch:null,log:[],stats:Object.fromEntries(allPlayers().map(p=>[p.id,{ab:0,h:0,r:0,rbi:0,bb:0,k:0}]))};
+    lastPitch:null,lastPitchByPitcher:{},log:[],stats:Object.fromEntries(allPlayers().map(p=>[p.id,{ab:0,h:0,r:0,rbi:0,bb:0,k:0}]))};
 }
 export const matchTeams = m => m.teamIds?m.teamIds.map(id=>TEAMS.find(t=>t.id===id)):TEAMS;
 export const battingTeam = m => TEAMS.indexOf(matchTeams(m)[m.half]);
@@ -76,6 +76,10 @@ function applyDefense(m,outcome,event,batter,stats){
      if(from<0||checked.has(r.id)||forces[r.base]!==r.id||to!==from+2||!behind.some(id=>checked.has(id)))throw Error('Invalid tag runner or active force');
      const start=points[from+1],end=points[to],expected={x:start.x+(end.x-start.x)*q,y:start.y+(end.y-start.y)*q},tag=r.tag;
      if(!tag||!Number.isFinite(tag.controlAt)||tag.controlAt>r.at||!TEAMS[fieldingTeam(m)].players.some(p=>p.id===tag.holderId)||!tagContactValid({at:r.at,arriveAt,holderPoint:tag.holderPoint,runnerPoint:tag.runnerPoint,startPoint:start})||Math.hypot(tag.runnerPoint.x-expected.x,tag.runnerPoint.y-expected.y)>1e-6)throw Error('Tag lacks controlled runner contact');
+     const zone=c.tagZoneById?.[tag.holderId];
+     if(zone?.base===r.base){
+      if(!tag.zone||['radius','windupSeconds'].some(k=>tag.zone[k]!==zone[k])||tag.zone.base!==zone.base||tag.zone.offset?.x!==zone.offset?.x||tag.zone.offset?.y!==zone.offset?.y||!Number.isFinite(tag.motionStartedAt)||tag.motionStartedAt<tag.controlAt+(zone.secureSeconds??.18)-1e-8||r.at<tag.motionStartedAt+zone.windupSeconds-1e-8||!tagContactValid({at:r.at,arriveAt,holderPoint:{x:tag.holderPoint.x+zone.offset.x,y:tag.holderPoint.y+zone.offset.y},runnerPoint:tag.runnerPoint,startPoint:start,reach:zone.radius}))throw Error('Tag does not match authored glove contact');
+     }
     }else throw Error('Invalid or removed force');
     if(hasTags&&(!Number.isFinite(r.at)||r.at<previousAt))throw Error('Invalid retirement clock');previousAt=r.at;checked.add(r.id);
   }
@@ -102,7 +106,12 @@ export function applyOutcome(match,outcome){
   const event={kind:outcome.kind,title:'',runs:0,team,batter:batter.id,batterName:batter.name,
     beforeBases:[...m.bases],afterBases:null,atBatEnded:false,halfEnded:false,gameEnded:false,walkOff:false,detail:outcome.detail??''};
   m.pitchNumber++;
-  if(outcome.pitchKind)m.lastPitch=outcome.pitchKind;
+  if(outcome.pitchKind){
+    const pitcher=currentPitcher(m);
+    if(!pitcherRepertoire(pitcher.id).includes(outcome.pitchKind))throw Error('Invalid completed pitch type');
+    m.lastPitch=outcome.pitchKind;m.lastPitchByPitcher??={};m.lastPitchByPitcher[pitcher.id]=outcome.pitchKind;
+    event.pitchKind=outcome.pitchKind;event.pitcherId=pitcher.id;
+  }
   const stats=m.stats[batter.id];
   switch(outcome.kind){
     case 'defensiveplay':applyDefense(m,outcome,event,batter,stats);break;
@@ -138,7 +147,7 @@ export function makeMatchPitch(m,{speed=null,kind=null,aim=null,releaseError=0,d
   let x,y;
   if(aim){const scatter=.08+releaseError*.7;x=aim.x+(rand()-.5)*scatter*2;y=aim.y+(rand()-.5)*scatter*2;}
   else{const outside=rand()<.23;x=(rand()-.5)*1.55;y=(rand()-.5)*1.5;if(outside){if(rand()<.5)x=(x>=0?1:-1)*(1.18+rand()*.35);else y=(y>=0?1:-1)*(1.15+rand()*.3);}}
-  return {kind:pitchKind,pitcherId:pitcher.id,throws:pitcher.throws,x,y,duration:(SPEEDS[speed]??1.25)*PITCH_TYPES[pitchKind].duration,
+  return {kind:pitchKind,pitcherId:pitcher.id,throws:pitcher.throws,speedClass:speed,x,y,duration:(PITCH_FLIGHT_SECONDS[speed]??PITCH_FLIGHT_SECONDS.standard)*PITCH_TYPES[pitchKind].duration,
     movement:pitchMovement(pitchKind,pitcher.throws,rand()),bend:pitchKind==='curve'?(pitcher.throws==='R'?1:-1)*.9:0,inZone:Math.abs(x)<=1&&Math.abs(y)<=1,releaseError};
 }
 
@@ -166,10 +175,11 @@ export function cpuBat(m,pitch,{difficulty='standard'}={}){
   const swings=rand()<(pitch.inZone?.94:skill.chase);
   if(!swings)return {kind:pitch.inZone?'strike':'ball',detail:pitch.inZone?'The batter watches it cross the zone.':'The batter lets it go outside.'};
   const edge=Math.max(Math.abs(pitch.x),Math.abs(pitch.y));
-  const variation=m.lastPitch&&m.lastPitch!==pitch.kind?.05:0;
+  const previous=m.lastPitchByPitcher?.[currentPitcher(m).id]??null;
+  const variation=previous&&previous!==pitch.kind?.05:0;
   if(rand()<.20+skill.missAdjustment+Math.max(0,edge-.55)*.17+variation+(pitch.inZone?0:.15))return {kind:'miss',detail:'A swing through the pitch.'};
   if(rand()<.23)return {kind:'foul',detail:'Fouled away. Keep changing the pitch location.'};
-  const repeated=m.lastPitch===pitch.kind?.08:0;
+  const repeated=previous===pitch.kind?.08:0;
   const quality=Math.max(.1,Math.min(.97,.24+skill.qualityAdjustment+rand()*.55+(batter.contact-75)*.002+pitch.releaseError*.10+repeated-Math.max(0,edge-.4)*.12));
   return contactOutcome(m,{quality,timingMs:(rand()-.5)*140});
 }

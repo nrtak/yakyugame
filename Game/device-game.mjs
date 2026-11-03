@@ -29,13 +29,14 @@ export class DeviceGame {
  swing(){if(this.paused||!this.userBatting||this.phase!=='flight'||this.swingAt!==null)return false;this.swingAt=this.elapsed;this.contact=judgeSwing(this.pitch,this.aim,this.elapsed+SWING_LEAD,{forgiving:this.assisted});return true;}
  throwTo(base){return !this.paused&&this.phase==='field'&&!this.userBatting?this.inning.throwTo(base):false;}
  tagRunner(id){return !this.paused&&this.phase==='field'&&!this.userBatting?this.inning.tagRunner(id):false;}
- finishPitch(outcome){this.event=this.inning.pitchResult(outcome);this.clock=0;this.phase='review';}
+ finishPitch(outcome){this.event=this.inning.pitchResult({...outcome,...(this.pitch?{pitchKind:this.pitch.kind}:{})});this.clock=0;this.phase='review';}
  beginFair(contact){
   const verticalOffset=this.userBatting?this.aim.y-this.pitch.y:Math.sin(this.match.pitchNumber*2.37)*.5;
-  this.inning.beginFlight({...contact,verticalOffset});this.phase='field';this.clock=0;this.autoClock=0;
+  this.inning.beginFlight({...contact,verticalOffset},{pitchKind:this.pitch?.kind});this.phase='field';this.clock=0;this.autoClock=0;
  }
  step(dt){
-  if(!Number.isFinite(dt)||dt<0)throw Error('Invalid game time');if(this.paused||['menu','review','final','pitch-ready'].includes(this.phase))return;
+  if(!Number.isFinite(dt)||dt<0)throw Error('Invalid game time');if(this.paused||['menu','final','pitch-ready'].includes(this.phase))return;
+  if(this.phase==='review'){this.clock+=Math.min(.05,dt);return;}
   dt=Math.min(.05,dt);this.clock+=dt;
   if(this.phase==='windup'&&this.clock>=.72){this.phase='flight';this.clock=0;this.elapsed=0;}
   else if(this.phase==='flight'){

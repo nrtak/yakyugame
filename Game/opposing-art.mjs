@@ -1,3 +1,4 @@
+import {fieldDisplayScale} from './field-scaling.mjs';
 // Authored mound/first-base views. No reflected home-camera substitutes.
 export const OPPOSING_ASSETS={},OPPOSING_CAST={};
 for(const team of ['coral-club','navy-stars'])for(const name of team==='coral-club'?['emma','mia','ken','lily','dylan','noah','emi','sora','theo']:['ryan','mia','ken','lily','dylan','noah','emma','sora','theo']){
@@ -65,8 +66,8 @@ const CATCHER_THROW_POSES={
 };
 export function catcherFieldPose(id,hand,action){
  if(hand!=='R')return null;
- if(action==='throw'){const pose=CATCHER_THROW_POSES[id];return pose?{...pose,action,throws:'R',gloveHand:'L'}:null;}
- const p=catcherPose(id,action);return p?{...p,scale:action==='transfer'?.13:.11}:null;
+ if(action==='throw'){const pose=CATCHER_THROW_POSES[id];return pose?{...pose,scale:fieldDisplayScale(pose.asset,action,pose.scale),action,throws:'R',gloveHand:'L'}:null;}
+ const p=catcherPose(id,action);return p?{...p,scale:fieldDisplayScale(p.asset,action,action==='transfer'?.13:.11)}:null;
 }
 export function catcherPose(id,action='receive'){
  const cast=CATCHER_CAST[id];if(!cast||!['receive','transfer'].includes(action))return null;

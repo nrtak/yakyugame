@@ -1,7 +1,7 @@
 export const PLAY_TIPS={
  batting:{title:'At the plate',steps:['Drag the Aim pad on the left to move the contact cursor.','Tap Swing as the ball arrives. One tap commits your swing.'],note:'Contact help is on by default. Pitch speed stays the same.'},
  pitching:{title:'On the mound',steps:['Choose a pitch on the right. A check marks your selection.','Drag the Aim pad, then tap Pitch to begin the delivery.'],note:'Once you release, watch the play. Pitch and aim controls wait for the next pitch.'},
- fielding:{title:'Make the play',steps:['Fielders move to the ball automatically. Wait until it is secured.','Tap a base on the throwing diamond. ★ marks the suggested target.'],note:'After a throw is received, you may get another chance to throw for a double or triple play.'}
+ fielding:{title:'Make the play',steps:['Fielders move to the ball automatically. Wait until the ball is secured.','Tap the suggested Throw button below the field. Use Other bases to choose a different target.','If Tag Runner appears, tap it to prepare the tag and wait for the runner.'],note:'You can throw again after a receiver controls the ball. Controls stay below the playing area.'}
 };
 export function tipForGame(game){
  if(['menu','review','final'].includes(game.phase))return null;

@@ -1,5 +1,6 @@
 import {DeviceGame} from './device-game.mjs';
 import {TEAMS,allPlayers} from './rosters.mjs';
+import {pitcherRepertoire} from './pitch-types.mjs';
 export const MATCH_SAVE_KEY='yakyugame.match-saves.v1';
 const clone=v=>structuredClone(v),uint=n=>Number.isSafeInteger(n)&&n>=0&&n<=100000;
 export function captureMatchCheckpoint(game){
@@ -10,6 +11,7 @@ export function resumeMatchCheckpoint(value){
  const s=value?.settings,m=value?.match;
  if(value?.version!==1||value.kind!=='pitch-checkpoint'||!s||!m||JSON.stringify(value).length>2000000||![1,3,7,9].includes(s.innings)||!Number.isSafeInteger(s.seed)||typeof s.assisted!=='boolean')throw Error('Saved game is unavailable');
  const game=new DeviceGame(s),ids=game.match.teamIds;
+ if(m.lastPitchByPitcher!==undefined&&(!m.lastPitchByPitcher||Array.isArray(m.lastPitchByPitcher)||typeof m.lastPitchByPitcher!=='object'||Object.entries(m.lastPitchByPitcher).some(([id,kind])=>!TEAMS.some(t=>t.players.some(p=>p.id===id&&p.position==='P'))||!pitcherRepertoire(id).includes(kind))))throw Error('Invalid saved pitch history');
  if(m.over!==false||m.winner!==null||m.innings!==s.innings||m.seed!==s.seed||JSON.stringify(m.teamIds)!==JSON.stringify(ids)||!Number.isInteger(m.inning)||m.inning<1||m.inning>m.innings||![0,1].includes(m.half)||![0,1,2].includes(m.outs)||![0,1,2,3].includes(m.balls)||![0,1,2].includes(m.strikes)||!uint(m.pitchNumber))throw Error('Invalid saved count');
  const offense=TEAMS.find(t=>t.id===ids[m.half]),bases=m.bases;
  if(!Array.isArray(bases)||bases.length!==3||bases.some(id=>id!==null&&!offense.players.some(p=>p.id===id))||new Set(bases.filter(Boolean)).size!==bases.filter(Boolean).length)throw Error('Invalid saved runners');

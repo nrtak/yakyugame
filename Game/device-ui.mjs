@@ -1,6 +1,6 @@
 import {DeviceGame,GAME_FORMATS,gameFormatLabel} from './device-game.mjs';
 import {PITCH_TYPES,projectPitch} from './pitch-types.mjs';
-import {createSceneRenderer,SCENE_GEOMETRY,pitchPosition,STADIUM_ART,SCENE_ASSETS} from './scene-render.mjs';
+import {createSceneRenderer,pitchPosition,STADIUM_ART,SCENE_ASSETS} from './scene-render.mjs';
 import {TEAMS,playerById,venueName} from './rosters.mjs';
 import {createProfileStore,completedMatchRecord} from './player-profiles.mjs';
 import {gameControls} from './game-controls.mjs';
@@ -10,9 +10,13 @@ import {seriesFixture} from './tournament-progress.mjs';
 import {cupFixture} from './club-cup.mjs';
 import {createCompetitionUI} from './competition-ui.mjs';
 import {createFieldingPracticeUI} from './fielding-practice-ui.mjs';
+import {GamePacing,automaticPitchDelay} from './game-pacing.mjs';
+import {createDefenseControls} from './defense-controls.mjs';
+import {renderMatchCount,renderLineScore} from './scoreboard.mjs';
 import {CaptainBattingPractice,PRACTICE_CAPTAINS} from './batting-practice.mjs';
 import {GameEffects,effectForEvent,isExceptionalFastball,drawGameEffect,drawPitchSpeedTrail} from './game-effects.mjs';
 const $=id=>document.getElementById(id),canvas=$('field'),ctx=canvas.getContext('2d'),renderer=createSceneRenderer(canvas);
+const pacing=new GamePacing(),defenseControls=createDefenseControls({document});
 for(const option of $('innings').options)option.textContent=gameFormatLabel(Number(option.value));
 const profiles=createProfileStore({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
 const matchSaves=createMatchSaveStore({getItem:key=>localStorage.getItem(key),setItem:(key,value)=>localStorage.setItem(key,value)});
@@ -20,7 +24,7 @@ const effects=new GameEffects(),motionPreference=matchMedia('(prefers-reduced-mo
 let game=new DeviceGame(),loaded=false,last=performance.now(),drag=null,lastField=null,shown='',uiSignature='',preparing=false,loadEpoch=0,loadError='',menuPage='home',settingsReturn='home',matchProfileId=null,matchRunId=null,matchSeries=false,matchCup=false,activeTip=null;
 let practice=null,practiceProfileId=null,practiceRunId=null,pitchPickerOpen=false;
 const competitions=createCompetitionUI({profiles,renderer,overlay,showMenu,home,update});
-const fieldingPractice=createFieldingPracticeUI({renderer,overlay,showMenu,home,update,reducedMotion:()=>reduceEffects||motionPreference.matches,onStart(){effects.clear();$('effects-layer').getContext('2d').clearRect(0,0,1600,960);drag=null;last=performance.now();}});
+const fieldingPractice=createFieldingPracticeUI({renderer,defenseControls,overlay,showMenu,home,update,reducedMotion:()=>reduceEffects||motionPreference.matches,onStart(){pacing.clear();$('game-start').hidden=true;effects.clear();$('effects-layer').getContext('2d').clearRect(0,0,1600,960);drag=null;last=performance.now();}});
 const activity=()=>fieldingPractice.activity??competitions.activity??practice;
 for(const p of PRACTICE_CAPTAINS){const o=document.createElement('option');o.value=p.id;o.textContent=p.team+' · '+p.name+' · '+p.bats+' BAT';$('practice-captain').append(o);}
 function overlay(which){$('overlay').hidden=!which;document.querySelector('.card').dataset.screen=which??'game';for(const id of ['home','profiles','settings-page','records-page','menu','paused','results','tutorial','practice-menu','practice-results','fielding-menu','fielding-results','competitions','derby-menu','derby-results','collection','cup-bracket'])$(id).hidden=id!==which;}
@@ -58,7 +62,7 @@ function showRecords(){
  for(const [label,value]of [['Games',r.games],['Wins',r.wins],['Losses',r.losses],['Draws',r.draws],['Runs',r.runs],['Hits',r.hits],['Pitching strikeouts',r.strikeouts],['Series titles',p.progression.seriesHistory.filter(s=>s.winnerId===s.userTeamId).length],['Cup titles',p.progression.cupHistory.filter(c=>c.winnerId===c.config.userTeamId).length],['Derbies',r.derbies],['Derby titles',r.derbyTitles],['Derby home runs',r.derbyHomeRuns],['Longest Derby HR',r.longestHomeRun+' ft']]){const box=document.createElement('div');box.className='record-cell';const number=document.createElement('b'),caption=document.createElement('span');number.textContent=value;caption.textContent=label;box.append(number,caption);list.append(box);}
  $('records-note').textContent=p.id?'Your completed game totals are saved on this device.':'Create a player profile to keep your records. Guest games are not saved.';showMenu('records-page');
 }
-function home(){fieldingPractice.stop();competitions.stop();loadEpoch++;practice=null;pitchPickerOpen=false;preparing=false;loadError='';effects.clear();lastPresentedEvent=null;activeTip=null;game.reset();lastField=null;drag=null;menuPage='home';refreshProfile();uiSignature='';update();}
+function home(){pacing.clear();$('game-start').hidden=true;defenseControls.reset();fieldingPractice.stop();competitions.stop();loadEpoch++;practice=null;pitchPickerOpen=false;preparing=false;loadError='';effects.clear();lastPresentedEvent=null;activeTip=null;game.reset();lastField=null;drag=null;menuPage='home';refreshProfile();uiSignature='';update();}
 refreshProfile();
 function dot(x,y,r,color){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();}
 function label(text,x,y,size=22,color='#173747'){ctx.font=`bold ${size}px system-ui`;ctx.fillStyle=color;ctx.textAlign='center';ctx.fillText(text,x,y);ctx.textAlign='start';}
@@ -67,14 +71,15 @@ function draw(){
  if(fieldingPractice.activity){fieldingPractice.draw();return;}
  if(competitions.activity){renderer.draw(competitions.activity.sceneState());return;}
  if(practice){renderer.draw(practice.sceneState());return;}
- if(game.phase==='field'||(game.phase==='review'&&lastField)){const s=game.defense??lastField;renderer.drawDefense({...s,reducedMotion:reduceEffects||motionPreference.matches,showCall:false,showReviewNotice:false,runnerNames:Object.fromEntries(s.runners.map(r=>[r.id,playerById(r.id).name]))});return;}
+ if(game.phase==='field'||(game.phase==='review'&&lastField)){const s=game.defense??lastField;renderer.drawDefense({...s,controlRail:true,reducedMotion:reduceEffects||motionPreference.matches,showCall:false,showReviewNotice:false,runnerNames:Object.fromEntries(s.runners.map(r=>[r.id,playerById(r.id).name]))});return;}
  if(!game.viewingBatting&&game.phase!=='menu'){pitching();return;}
- const s=game.sceneState();if(s.pitch&&game.renderPitcher.throws==='L')s.pitch={...s.pitch,release:{x:1000,y:SCENE_GEOMETRY.release.y}};renderer.draw(s);
+ renderer.draw(game.sceneState());
 }
 function results(){
  matchSaves.clear(matchProfileId,matchRunId);
  const m=game.match,teams=game.teams;$('winner').textContent=m.winner===null?'A friendly draw':teams[m.winner].name+' wins';$('final-score').textContent=`${teams[0].short} ${m.score[0]} — ${m.score[1]} ${teams[1].short}`;$('final-length').textContent=gameFormatLabel(m.innings).toUpperCase()+' · FINAL';
  profiles.recordMatch(matchProfileId,matchRunId,completedMatchRecord(m,game.teamId));refreshProfile();
+ renderLineScore($('line-score'),m);
  $('series-result').hidden=!matchSeries;
  if(matchSeries){const progress=profiles.recordSeriesMatch(matchProfileId,{matchId:matchRunId,teamIds:m.teamIds,score:m.score,over:m.over}),s=progress.activeSeries,fixture=seriesFixture(s);
   $('series-result').textContent=s.status==='complete'?TEAMS.find(t=>t.id===s.winnerId).name+' wins the series!':s.teamIds.map((id,i)=>TEAMS.find(t=>t.id===id).short+' '+fixture.wins[i]).join(' · ')+(m.winner===null?' · Draw: replay this game.':' · Next game ready.');
@@ -89,38 +94,38 @@ function update(){
  if(fieldingPractice.activity){fieldingPractice.update();return;}
  if(competitions.activity){competitions.update();return;}
  if(practice){updatePractice();return;}
- const tip=tipForGame(game);if(tip&&!preparing&&!game.paused&&!activeTip&&!profiles.current.tutorials.includes(tip))openTip(tip);
- const m=game.match,field=game.phase==='field',s=game.defense;
- const signature=JSON.stringify([menuPage,preparing,loadError,activeTip,pitchPickerOpen,game.phase,game.paused,game.userBatting,game.swingAt!==null,game.pitchKind,game.batter.id,game.pitcher.id,m.score,m.inning,m.half,m.balls,m.strikes,m.outs,m.over,s?.phase,s?.possession,s?.call,s?.ballOwnerId,s?.throwToId,s?.target,s?.canThrow,s?.canTag,s?.tagPending,s?.recommendation,s?.playOuts,s?.flightType,s?.throwOptions?.map(o=>[o.base,o.force,o.out,o.tagRequired]),game.event?.title,game.event?.detail]);
+ const tip=tipForGame(game);if(tip&&!pacing.active&&!preparing&&!game.paused&&!activeTip&&!profiles.current.tutorials.includes(tip))openTip(tip);
+ const m=game.match,field=game.phase==='field',fieldView=field||game.phase==='review'&&!!lastField,s=game.defense;
+ const signature=JSON.stringify([pacing.active,menuPage,preparing,loadError,activeTip,pitchPickerOpen,game.phase,game.paused,game.userBatting,game.swingAt!==null,game.pitchKind,game.batter.id,game.pitcher.id,m.score,m.inning,m.half,m.balls,m.strikes,m.outs,m.over,s?.phase,s?.possession,s?.call,s?.ballOwnerId,s?.throwToId,s?.target,s?.canThrow,s?.canTag,s?.tagPending,s?.recommendation,s?.playOuts,s?.flightType,s?.throwOptions?.map(o=>[o.base,o.force,o.out,o.tagRequired]),game.event?.title,game.event?.detail]);
  if(signature===uiSignature)return;uiSignature=signature;
  if(!preparing&&matchRunId&&!['menu','final'].includes(game.phase))matchSaves.save(matchProfileId,{runId:matchRunId,series:matchSeries,cup:matchCup,game});
  $('resume-saved').disabled=!loaded||preparing;
  if(game.event&&game.event!==lastPresentedEvent){lastPresentedEvent=game.event;const kind=effectForEvent(game.event),key='play-'+m.pitchNumber;
   if(kind)effects.play(kind,{key});else if(game.event.atBatEnded&&!game.event.halfEnded&&(m.pitchNumber+game.seed)%5===0)effects.play('crowd',{key});
  }
- const teams=game.teams;$('coral').textContent=teams[0].short+' '+m.score[0];$('navy').textContent=teams[1].short+' '+m.score[1];$('coral').style.background=teams[0].color;$('navy').style.background=teams[1].color;$('half').textContent=m.over?'FINAL':((game.phase==='review'&&game.atBat?game.atBat.half:m.half)===0?'TOP':'BOT')+' '+(game.phase==='review'&&game.atBat?game.atBat.inning:m.inning);$('count').textContent=`B ${m.balls} · S ${m.strikes} · O ${(game.phase==='review'&&game.event?.halfEnded?3:m.outs+(field?s?.playOuts??0:0))}`;
- const controls=gameControls(game);$('pause').disabled=['menu','final'].includes(game.phase);$('pad').hidden=!controls.aimVisible;$('pad').setAttribute('aria-disabled',String(!controls.aimEnabled));$('action').hidden=!controls.actionVisible;$('action').querySelector('b').textContent=controls.actionLabel;$('action').querySelector('small').textContent=controls.actionDetail;$('action').setAttribute('aria-label',controls.actionLabel+' · '+controls.actionDetail);$('action').disabled=!controls.actionEnabled;
+ const teams=game.teams;$('coral').textContent=teams[0].short+' '+m.score[0];$('navy').textContent=teams[1].short+' '+m.score[1];$('coral').style.background=teams[0].color;$('navy').style.background=teams[1].color;$('half').textContent=m.over?'FINAL':((game.phase==='review'&&game.atBat?game.atBat.half:m.half)===0?'TOP':'BOT')+' '+(game.phase==='review'&&game.atBat?game.atBat.inning:m.inning);renderMatchCount($('count'),game);
+ const controls=gameControls(game),starting=pacing.active;$('game-start').hidden=!starting||game.paused;$('game-start-title').textContent=pacing.resumed?'GAME RESUMED':pacing.changeSides?'CHANGE SIDES':'PLAY BALL!';$('game-start-matchup').textContent=teams[0].name+' vs. '+teams[1].name;$('game-start-role').textContent=game.userBatting?'You are batting · The pitcher controls the next pitch':'You are pitching · Choose a pitch, aim, then tap Pitch';$('pause').disabled=['menu','final'].includes(game.phase);$('pad').hidden=!controls.aimVisible;$('pad').setAttribute('aria-disabled',String(!controls.aimEnabled||starting||preparing));$('action').hidden=!controls.actionVisible;$('action').querySelector('b').textContent=controls.actionLabel;$('action').querySelector('small').textContent=controls.actionDetail;$('action').setAttribute('aria-label',controls.actionLabel+' · '+controls.actionDetail);$('action').disabled=!controls.actionEnabled||starting||preparing;
  if(!controls.pitchesVisible||game.paused)pitchPickerOpen=false;
- $('pitch-picker').hidden=!controls.pitchesVisible;$('pitch-picker').disabled=game.paused;$('pitch-picker').textContent=PITCH_TYPES[game.pitchKind].name+' · Change';$('pitch-picker').setAttribute('aria-expanded',String(pitchPickerOpen));$('pitches').hidden=!controls.pitchesVisible||!pitchPickerOpen;
- $('phase-label').hidden=['menu','final'].includes(game.phase);$('phase-label').textContent=controls.heading;$('control-hint').hidden=['menu','final','review'].includes(game.phase);$('control-hint').textContent=controls.hint;$('game').dataset.playMode=field?'field':game.userBatting?'bat':'pitch';
+ $('pitch-picker').hidden=!controls.pitchesVisible;$('pitch-picker').disabled=game.paused||starting||preparing;$('pitch-picker').textContent=PITCH_TYPES[game.pitchKind].name+' · Change';$('pitch-picker').setAttribute('aria-expanded',String(pitchPickerOpen));$('pitches').hidden=!controls.pitchesVisible||!pitchPickerOpen;
+ $('phase-label').hidden=['menu','final'].includes(game.phase);$('phase-label').textContent=controls.heading;$('control-hint').hidden=['menu','final','review'].includes(game.phase);$('control-hint').textContent=controls.hint;$('game').dataset.playMode=fieldView?'field':game.userBatting?'bat':'pitch';
  const pitchPanel=$('pitches');if(pitchPanel.dataset.pitcher!==game.pitcher.id){pitchPanel.dataset.pitcher=game.pitcher.id;pitchPanel.replaceChildren(...game.repertoire.map(kind=>{const b=document.createElement('button');b.dataset.pitch=kind;b.textContent=PITCH_TYPES[kind].name;b.title=PITCH_TYPES[kind].hint;return b;}));}
- for(const p of document.querySelectorAll('[data-pitch]')){p.setAttribute('aria-pressed',String(p.dataset.pitch===game.pitchKind));p.disabled=game.paused;}
- $('throws').hidden=!controls.throwsVisible;for(const b of document.querySelectorAll('[data-base]')){const target=controls.bases.find(t=>t.base===b.dataset.base);b.disabled=!target.enabled;b.classList.toggle('recommended',target.recommended);b.setAttribute('aria-label',target.ariaLabel);const name=document.createElement('b'),detail=document.createElement('small');name.textContent=(target.recommended?'★ ':'')+target.label;detail.textContent=target.detail;b.replaceChildren(name,detail);b.title=target.ariaLabel;}
- $('tag-runner').hidden=!controls.tagVisible;$('tag-runner').disabled=!controls.tagEnabled;$('tag-runner').textContent=controls.tagLabel;
- $('next').disabled=preparing;$('start').disabled=!loaded||preparing;$('start').textContent=preparing?'Getting players ready…':loadError?'Try Again':$('play-mode').value==='cup'?(profiles.current.progression.activeCup&&!profiles.current.progression.activeCup.over?'Resume Club Cup':'Start Club Cup'):$('play-mode').value==='series'?(profiles.current.progression.activeSeries?.status==='active'?'Resume Series':'Start Rivalry Series'):'Start '+GAME_FORMATS[Number($('innings').value)];$('next').hidden=game.phase!=='review';$('next').textContent=m.over?'See Results →':game.event?.halfEnded?'Change Sides →':'Next Pitch →';
+ for(const p of document.querySelectorAll('[data-pitch]')){p.setAttribute('aria-pressed',String(p.dataset.pitch===game.pitchKind));p.disabled=game.paused||starting||preparing;}
+ defenseControls.render(controls,s,{active:field});
+ $('next').disabled=preparing;$('start').disabled=!loaded||preparing;$('start').textContent=preparing?'Getting players ready…':loadError?'Try Again':$('play-mode').value==='cup'?(profiles.current.progression.activeCup&&!profiles.current.progression.activeCup.over?'Resume Club Cup':'Start Club Cup'):$('play-mode').value==='series'?(profiles.current.progression.activeSeries?.status==='active'?'Resume Series':'Start Rivalry Series'):'Start '+GAME_FORMATS[Number($('innings').value)];$('next').hidden=game.phase!=='review'||automaticPitchDelay(game)!==null&&!loadError;$('next').textContent=loadError?'Retry next pitch':m.over?'See Results →':game.event?.halfEnded?'Change Sides →':'Next Pitch →';
  let message=game.batter.name+' · '+game.batter.bats+' BAT vs '+game.pitcher.name+' · '+game.pitcher.throws+'HP';
  if(game.phase==='field'){const owner=s?.players.find(p=>p.id===s.ballOwnerId),receiver=s?.players.find(p=>p.id===s.throwToId);message=s?.tagPending?'Ready to tag · Waiting for the runner':s?.canTag&&!game.userBatting?'Tap Tag Runner · A tag is needed for this out':s?.canThrow?(owner?.name??'Fielder')+' has the ball · '+(game.userBatting?'Defense choosing a throw':'Tap a base'+(s.playOuts?' for another out':'')):s?.phase==='airborne'?s.flightType+' · Tracking the ball':s?.phase==='caught'?owner.name+' makes the catch · Runners hold':s?.phase==='homerun'?'Over the fence · Home run':s?.phase==='approach'?'Ball in play · '+s.players.find(p=>p.id===s.fielderId)?.name+' is fielding':s?.phase==='carry'?'Touching the bag':s?.phase==='throw'?'Throw to '+s.target+' · '+receiver?.name+' receiving':(owner?.name??'Fielder')+' securing the ball';}
- else if(game.phase==='review')message=game.event.title+' · '+game.event.detail;
+ else if(game.phase==='review')message=game.event.title+' · '+(automaticPitchDelay(game)!==null?'The pitcher is getting ready…':game.event.detail);
+ else if(game.phase==='flight'&&!game.userBatting)message=PITCH_TYPES[game.pitch.kind].name+' · '+PITCH_TYPES[game.pitch.kind].hint;
  $('message').textContent=loadError||message;$('matchup-error').textContent=loadError;$('matchup-error').hidden=!loadError;
  const feedback=defenseFeedback(field?s:game.phase==='review'?lastField:null);$('possession').hidden=!field;$('possession').textContent=feedback.possession;$('play-call').hidden=!feedback.call;$('play-call').textContent=feedback.call;$('play-call').dataset.tone=feedback.tone;
  $('hud').hidden=game.phase==='menu';$('pause').hidden=game.phase==='menu';$('message').hidden=game.phase==='menu';
  $('game').classList.toggle('menu-open',game.phase==='menu'||game.phase==='final'||game.paused);
  if(activeTip)overlay('tutorial');else if(game.paused)overlay('paused');else if(game.phase==='menu')overlay(menuPage);else if(game.phase==='final'){if(shown!=='final'){results();effects.play('end',{key:'final',title:m.winner===null?'A FRIENDLY DRAW':teams[m.winner].short+' WINS!',subtitle:teams[0].short+' '+m.score[0]+' · '+teams[1].short+' '+m.score[1]});}overlay('results');}else overlay(null);shown=game.paused?'paused':game.phase;
 }
-async function prepareAndAdvance(start=false){
+async function prepareAndAdvance(start=false,{resumed=false}={}){
  if(preparing||game.paused)return;const current=game,token=++loadEpoch;preparing=true;loadError='';update();
  try{await Promise.all([renderer.prepareBatter(game.batter.id,game.batter.bats),renderer.prepareVenue(game.homeTeamId),renderer.prepareDefense(game.teams[1-game.match.half].id),renderer.prepareOpposing(game.batter.id,game.teams[1-game.match.half].players.find(p=>p.position=== 'C').id)]);if(token!==loadEpoch||current!==game||game.paused)return;const changeSides=game.event?.halfEnded;lastField=null;effects.clear();start?game.start():game.next();
-  if(start)effects.play('start',{key:'start',subtitle:game.teams[0].short+' vs. '+game.teams[1].short});else if(changeSides&&!game.match.over)effects.play('inning',{key:'half-'+game.match.inning+'-'+game.match.half,title:(game.match.half===0?'TOP ':'BOTTOM ')+game.match.inning,subtitle:game.teams[game.match.half].short+' up to bat'});
+  if(start)pacing.begin({resumed});else if(changeSides&&!game.match.over)pacing.begin({changeSides:true});
   last=performance.now();}
  catch{loadError='Character images could not load. Tap again to retry.';}
  finally{if(token===loadEpoch){preparing=false;uiSignature='';update();}}
@@ -129,7 +134,7 @@ async function begin(){if(!loaded||preparing)return;const saved=matchSaves.read(
  if(matchSeries){try{if(profiles.current.progression.activeSeries?.status!=='active')profiles.startSeries(matchProfileId,{id:crypto.randomUUID(),teamIds:TEAMS.map(t=>t.id),userTeamId:options.teamId,innings:options.innings});const fixture=profiles.prepareSeriesMatch(matchProfileId,matchRunId);matchRunId=fixture.matchId;options={...options,teamId:fixture.teamId,homeTeamId:fixture.homeTeamId,innings:fixture.innings};}catch(error){loadError=error.message;uiSignature='';update();return;}}
  if(matchCup){try{if(!profiles.current.progression.activeCup||profiles.current.progression.activeCup.over)profiles.startCup(matchProfileId,{id:crypto.randomUUID(),teamIds:TEAMS.map(t=>t.id),userTeamId:options.teamId,innings:options.innings,seed:211});const fixture=profiles.prepareCupMatch(matchProfileId,matchRunId);matchRunId=fixture.matchId;options={...options,teamId:fixture.teamId,homeTeamId:fixture.homeTeamId,innings:fixture.innings};}catch(error){loadError=error.message;uiSignature='';update();return;}}
  game=new DeviceGame(options);await prepareAndAdvance(true);}
-async function resumeSavedGame(){if(!loaded||preparing)return;const saved=matchSaves.read(profiles.current.id);if(!saved){refreshProfile();return;}game=resumeMatchCheckpoint(saved.checkpoint);matchProfileId=profiles.current.id;matchRunId=saved.runId;matchSeries=saved.series;matchCup=!!saved.cup;$('play-mode').value=matchCup?'cup':matchSeries?'series':'single';lastField=null;activeTip=null;lastPresentedEvent=null;effects.clear();await prepareAndAdvance(true);}
+async function resumeSavedGame(){if(!loaded||preparing)return;const saved=matchSaves.read(profiles.current.id);if(!saved){refreshProfile();return;}game=resumeMatchCheckpoint(saved.checkpoint);matchProfileId=profiles.current.id;matchRunId=saved.runId;matchSeries=saved.series;matchCup=!!saved.cup;$('play-mode').value=matchCup?'cup':matchSeries?'series':'single';lastField=null;activeTip=null;lastPresentedEvent=null;effects.clear();await prepareAndAdvance(true,{resumed:true});}
 async function startPractice(){if(!loaded||preparing)return;const p=PRACTICE_CAPTAINS.find(p=>p.id===$('practice-captain').value),token=++loadEpoch;preparing=true;$('practice-start').disabled=true;$('practice-error').textContent='Loading captain…';try{await renderer.prepareBatter(p.id,p.bats);if(token!==loadEpoch)return;practice=new CaptainBattingPractice(p.id);practiceProfileId=profiles.current.id;practiceRunId=crypto.randomUUID();effects.clear();activeTip=null;practice.start();last=performance.now();}catch{$('practice-error').textContent='Character images could not load. Please try again.';}finally{if(token===loadEpoch){preparing=false;$('practice-start').disabled=false;update();}}}
 function updatePractice(){
  const s=practice,summary=s.phase==='summary';$('hud').hidden=false;$('coral').textContent=s.player.name;$('navy').textContent=s.player.bats+' BAT';$('half').textContent='PITCH '+Math.min(10,s.index+1)+'/10';$('count').textContent=s.results.filter(r=>r.kind==='hit').length+' fair hits · Batting practice';
@@ -138,7 +143,7 @@ function updatePractice(){
  $('phase-label').hidden=summary;$('phase-label').textContent='BATTING PRACTICE';$('game').dataset.playMode='bat';$('message').hidden=summary;$('message').textContent=s.phase==='result'?s.result.title:'Drag to aim · Tap Swing just before the ball arrives';$('control-hint').hidden=true;$('game').classList.toggle('menu-open',s.paused||summary);
  if(summary){profiles.recordPractice(practiceProfileId,practiceRunId,'batting',s.summary.score);$('practice-score').textContent=s.player.name+' · '+s.summary.fairHits+' fair hits out of 10 pitches · '+s.summary.score+' points';overlay('practice-results');}else overlay(s.paused?'paused':null);
 }
-function act(){if(fieldingPractice.activity)return;pitchPickerOpen=false;if(competitions.activity)competitions.activity.swing();else if(practice)practice.swing();else game.userBatting?game.swing():game.releasePitch();update();}
+function act(){if(fieldingPractice.activity||pacing.active||preparing)return;pitchPickerOpen=false;if(competitions.activity)competitions.activity.swing();else if(practice)practice.swing();else game.userBatting?game.swing():game.releasePitch();update();}
 function pause(){loadEpoch++;preparing=false;$('practice-start').disabled=false;if(activity())activity().paused=true;else game.pause();drag=null;last=performance.now();update();}
 window.GameLifecycle={pause};
 function closeTip(skip=false){if(!activeTip)return;profiles.finishTutorial(skip?Object.keys(PLAY_TIPS):[activeTip]);activeTip=null;game.resume();last=performance.now();uiSignature='';update();}
@@ -159,16 +164,17 @@ $('pitches').addEventListener('click',e=>{const b=e.target.closest('[data-pitch]
 $('tag-runner').addEventListener('click',()=>{if(fieldingPractice.activity)fieldingPractice.tagRunner();else game.tagRunner();update();});
 function isTextEntry(target){const el=target?.closest?.('input,textarea,[contenteditable]');return !!el&&(el.isContentEditable||el.tagName==='TEXTAREA'||el.tagName==='INPUT'&&['text','search','email','url','tel','password','number'].includes(el.type));}
 for(const type of ['contextmenu','selectstart','dragstart'])$('game').addEventListener(type,e=>{if(!isTextEntry(e.target))e.preventDefault();});
-function beginDrag(e){if(activity()?(activity().paused||activity().swingAt!==null||!['ready','windup','flight'].includes(activity().phase)):!gameControls(game).aimEnabled)return;const p=renderer.point(e);drag={id:e.pointerId,start:p,aim:{...(activity()??game).aim}};e.currentTarget.setPointerCapture(e.pointerId);}
+function beginDrag(e){if(pacing.active||preparing||(activity()?(activity().paused||activity().swingAt!==null||!['ready','windup','flight'].includes(activity().phase)):!gameControls(game).aimEnabled))return;const p=renderer.point(e);drag={id:e.pointerId,start:p,aim:{...(activity()??game).aim}};e.currentTarget.setPointerCapture(e.pointerId);}
 function moveDrag(e){if(!drag||drag.id!==e.pointerId)return;const p=renderer.point(e),s=Number($('sensitivity').value);(activity()??game).setAim(drag.aim.x+(p.x-drag.start.x)/150*s*(activity()||game.userBatting?1:-1),drag.aim.y-(p.y-drag.start.y)/150*s);}
 for(const id of ['field','pad']){$(id).addEventListener('pointerdown',e=>{e.preventDefault();beginDrag(e);});$(id).addEventListener('pointermove',moveDrag);for(const t of ['pointerup','pointercancel'])$(id).addEventListener(t,()=>{drag=null;});}
  $('action').addEventListener('pointerdown',e=>{e.preventDefault();act();});$('action').addEventListener('click',e=>{if(e.detail===0)act();});
-document.addEventListener('keydown',e=>{if(['SELECT','INPUT','TEXTAREA'].includes(e.target.tagName)||fieldingPractice.activity)return;if(e.code==='Space'&&!e.repeat&&e.target.tagName!=='BUTTON'){e.preventDefault();act();}if(e.code.startsWith('Arrow')){e.preventDefault();(activity()??game).setAim((activity()??game).aim.x+(e.code==='ArrowRight'?.1:e.code==='ArrowLeft'?-.1:0)*(activity()||game.userBatting?1:-1),(activity()??game).aim.y+(e.code==='ArrowUp'?.1:e.code==='ArrowDown'?-.1:0));}});
+document.addEventListener('keydown',e=>{if(['SELECT','INPUT','TEXTAREA'].includes(e.target.tagName)||fieldingPractice.activity||pacing.active||preparing)return;if(e.code==='Space'&&!e.repeat&&e.target.tagName!=='BUTTON'){e.preventDefault();act();}if(e.code.startsWith('Arrow')){e.preventDefault();(activity()??game).setAim((activity()??game).aim.x+(e.code==='ArrowRight'?.1:e.code==='ArrowLeft'?-.1:0)*(activity()||game.userBatting?1:-1),(activity()??game).aim.y+(e.code==='ArrowUp'?.1:e.code==='ArrowDown'?-.1:0));}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();last=performance.now();});
-function frame(now){const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;if(fieldingPractice.activity){fieldingPractice.activity.step(dt);draw();update();requestAnimationFrame(frame);return;}if(competitions.activity){competitions.activity.step(dt);draw();update();requestAnimationFrame(frame);return;}if(practice){practice.step(dt);draw();update();requestAnimationFrame(frame);return;}$('replay-tips').hidden=false;if(game.phase==='field')lastField=game.defense;game.step(dt);
+function frame(now){const dt=Math.min(.05,Math.max(0,(now-last)/1000));last=now;if(fieldingPractice.activity){fieldingPractice.activity.step(dt);draw();update();requestAnimationFrame(frame);return;}if(competitions.activity){competitions.activity.step(dt);draw();update();requestAnimationFrame(frame);return;}if(practice){practice.step(dt);draw();update();requestAnimationFrame(frame);return;}$('replay-tips').hidden=false;if(game.phase==='field')lastField=game.defense;if(pacing.step(dt,{paused:game.paused})&&!preparing)game.step(dt);
  if(game.phase==='flight'&&isExceptionalFastball(game.pitch))effects.play('fastball',{key:'fast-'+game.match.pitchNumber});
+ const autoDelay=automaticPitchDelay(game);if(autoDelay!==null&&game.clock>=autoDelay&&!preparing&&!game.paused&&!loadError&&!pacing.active)prepareAndAdvance();
  draw();update();effects.step(dt,{paused:game.paused});const effectFrame=effects.frame,reducedMotion=reduceEffects||motionPreference.matches;drawGameEffect($('effects-layer'),effectFrame,{reducedMotion});
- if(!reducedMotion&&game.viewingBatting&&game.phase==='flight'&&isExceptionalFastball(game.pitch))drawPitchSpeedTrail($('effects-layer'),Array.from({length:6},(_,i)=>pitchPosition(game.pitch,Math.max(0,game.elapsed-(5-i)*.012))));
+ if(!reducedMotion&&game.viewingBatting&&game.phase==='flight'&&isExceptionalFastball(game.pitch))drawPitchSpeedTrail($('effects-layer'),Array.from({length:6},(_,i)=>pitchPosition(game.pitch,Math.max(0,game.elapsed-(5-i)*.012),game.renderPitcher.id)));
  const announcement=effectFrame?effectFrame.title+'. '+effectFrame.subtitle:'';if(announcement&&announcement!==announcedEffect){$('effect-announcement').textContent=announcement;announcedEffect=announcement;}
  else if(!announcement&&announcedEffect){$('effect-announcement').textContent='';announcedEffect='';}
  requestAnimationFrame(frame);}

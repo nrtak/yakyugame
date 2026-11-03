@@ -28,6 +28,10 @@ DEFENSIVE_PITCH_ASSETS.defenseRyanlegSwing='assets/scene-defense-ryan-leg-swing-
 DEFENSIVE_PITCH_ASSETS.defenseRyanfinish='assets/scene-defense-ryan-finish-v3.png';
 DEFENSIVE_PITCH_ASSETS.defenseRyanarmBack='assets/scene-defense-ryan-arm-back-v1.png';
 for(const [i,version]of [5,4,3,5,4].entries())DEFENSIVE_PITCH_ASSETS['defenseEmma'+phases[i]]='assets/scene-defense-emma-'+phases[i]+'-v'+version+'.png';
+// Rear set/lift align chest, nape and gaze toward the plate; RIGHT glove,
+// bare LEFT fingers external. Full frames use positive uniform registration.
+DEFENSIVE_PITCH_ASSETS.defenseEmmaset='assets/scene-defense-emma-set-neckfix-10-30-v1.png';
+DEFENSIVE_PITCH_ASSETS.defenseEmmalift='assets/scene-defense-emma-lift-neckfix-10-30-v1.png';
 const ryan=[
  {size:[1223,1286],rect:[440,85,470,1125],anchor:[555,1182],world:[340,900],support:'R',hand:[797,359],otherFoot:[745,1110]},
  {size:[1222,1287],rect:[460,110,450,1090],anchor:[665,1167],world:[340,900],support:'R',hand:[756,353]},
@@ -44,8 +48,8 @@ const ryan=[
 // in the approved rear idle; the left landing remains fixed after the stride.
 for(const p of ryan)p.world=p.support==='R'?[ryanPivot.x,ryanPivot.y]:[...ryanLanding];
 const emma=[
- {size:[1189,1323],rect:[410,60,520,1200],anchor:[540,1232],world:[330,900],support:'L',hand:[484,337],otherFoot:[762,1154]},
- {size:[1189,1323],rect:[235,5,680,1270],anchor:[573,1248],world:[330,900],support:'L',hand:[423,338]},
+ {size:[1412,1498],rect:[0,0,1412,1498],anchor:[665,1103],world:[330,900],scale:1.01,support:'L',hand:[803,487],otherFoot:[850,1096]},
+ {size:[1405,1505],rect:[0,0,1405,1505],anchor:[710,1218],world:[330,900],scale:.8,support:'L',hand:[806,380]},
  {size:[1190,1322],rect:[235,35,855,1225],anchor:[435,1225],world:[330,900],support:'L',hand:[306,110],landing:[930,1082]},
  {size:[1189,1323],rect:[225,25,785,1215],anchor:[908,1205],world:[646.8,808.48],support:'R',hand:[848,35]},
  {size:[1189,1323],rect:[225,45,805,1210],anchor:[763,1220],world:[646.8,808.48],support:'R',hand:[990,711]}

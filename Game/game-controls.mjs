@@ -5,8 +5,9 @@ export function gameControls(game){
  const actionEnabled=actionVisible&&!game.paused&&(batting?phase==='flight'&&game.swingAt===null:phase==='pitch-ready');
  const aimEnabled=actionVisible&&!game.paused&&game.swingAt===null&&(batting?['windup','flight'].includes(phase):phase==='pitch-ready');
  return{
+  paused:!!game.paused,
   heading:field?'FIELDING':review?'PLAY COMPLETE':batting?'BATTING':'PITCHING',
-  hint:field?(game.userBatting?'Your runners advance automatically':game.defense?.tagPending?'Ready to tag · Waiting for the runner':game.defense?.canTag?'Tap Tag Runner before the runner reaches the base':game.defense?.canThrow?'Tap a base to throw · ★ Suggested target':'Fielders move automatically · Wait for the ball'):review?'Continue when you’re ready':batting?(game.swingAt!==null?'Swing committed · Watch the play':phase==='flight'?'Tap Swing as the ball arrives':'Aim now · Swing when the ball arrives'):phase==='pitch-ready'?'Choose a pitch · Aim with the left pad · Tap Pitch':'Pitch in progress · Watch the batter',
+  hint:field?(game.userBatting?'Your runners advance automatically':game.defense?.tagPending?'Ready to tag · Waiting for the runner':game.defense?.canTag?'Tap Tag Runner before the runner reaches the base':game.defense?.canThrow?'Tap the suggested Throw button · Other bases lets you choose':'Fielders move automatically · Wait for the ball'):review?(game.atBat?.userBatting?'The pitcher is getting ready for the next pitch':'Continue when you’re ready'):batting?(game.swingAt!==null?'Swing committed · Watch the play':phase==='flight'?'Tap Swing as the ball arrives':'Aim now · Swing when the ball arrives'):phase==='pitch-ready'?'Choose a pitch · Aim with the left pad · Tap Pitch':'Pitch in progress · Watch the batter',
   actionVisible,actionEnabled,actionLabel:batting?'SWING':'PITCH',
   actionDetail:batting?(game.swingAt!==null?'SWUNG':phase==='flight'?'TAP NOW':'GET READY'):phase==='pitch-ready'?'TAP TO THROW':'IN FLIGHT',
   aimVisible:actionVisible,aimEnabled,pitchesVisible:!batting&&phase==='pitch-ready',throwsVisible:field&&!batting&&!!game.defense?.canThrow,

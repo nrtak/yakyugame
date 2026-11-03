@@ -1,14 +1,14 @@
-// Movement is a prototype tuning model, in plate-zone units. These are not
-// measured MLB velocities. Fastball retains the existing 1.25s standard flight.
+// Playable timing, not measured MLB velocity. Contact help is independent.
+export const PITCH_FLIGHT_SECONDS=Object.freeze({relaxed:.94,standard:.68,quick:.54});
 export const PITCH_TYPES=Object.freeze(Object.fromEntries(Object.entries({
  fast:{name:'Fastball',duration:1,side:0,drop:0,hint:'Straight and quick'},
- curve:{name:'Curveball',duration:1.12,side:.85,drop:1.2,hint:'Glove-side break and drop'},
- change:{name:'Changeup',duration:1.23,side:-.35,drop:.5,hint:'Slower with arm-side fade'},
+ curve:{name:'Curveball',duration:1.2,side:.85,drop:1.2,hint:'Glove-side break and drop'},
+ change:{name:'Changeup',duration:1.45,side:-.35,drop:.5,hint:'Slower with arm-side fade'},
  slider:{name:'Slider',duration:1.08,side:.8,drop:.4,hint:'Sweeps to the glove side'},
  cutter:{name:'Cutter',duration:1.03,side:.3,drop:.1,hint:'Short glove-side cut'},
  sinker:{name:'Sinker',duration:1.04,side:-.6,drop:.7,hint:'Arm-side run and sink'},
  splitter:{name:'Splitter',duration:1.16,side:0,drop:1.4,hint:'Late downward break'},
- knuckle:{name:'Knuckleball',duration:1.34,side:0,drop:.4,flutter:.2,hint:'Slow, irregular flutter'}
+ knuckle:{name:'Knuckleball',duration:1.7,side:0,drop:.4,flutter:.2,hint:'Slow, irregular flutter'}
 }).map(([id,p])=>[id,Object.freeze(p)])));
 export const COMMON_PITCHES=Object.freeze(['fast','curve','change']);
 // Assigned once with seed 10222026, then frozen. Never reroll on a new game,
@@ -38,11 +38,16 @@ export function pitchOffset(p,q){
  if(!p.movement)return {x:Math.sin(Math.PI*q)*(p.bend??0)*40/65,y:0};
  const m=p.movement,e=q*q,late=Math.max(0,(q-.45)/.55)**2,shape=late-e;
  const envelope=Math.sin(Math.PI*q),phase=(m.seed??0)*Math.PI*2;
- return {x:m.side*shape+m.flutter*envelope*Math.sin(q*19+phase),
-  y:m.drop*shape+m.flutter*.65*envelope*Math.sin(q*27+phase*1.7)};
+ // Vertical drop is a smooth late-fall profile in projectPitch, not a wave.
+ return {x:m.side*shape*1.4+m.flutter*envelope*Math.sin(q*19+phase),
+  y:m.flutter*.65*envelope*Math.sin(q*27+phase*1.7)};
 }
 export function projectPitch(p,t,release,zone,reverseX=false){
- const q=Math.max(0,Math.min(1.2,t/p.duration)),e=q*q,offset=pitchOffset(p,q),side=reverseX?-1:1;
- return {x:release.x+(zone.x+side*p.x*zone.rx-release.x)*e+side*offset.x*zone.rx,
-  y:release.y+(zone.y-p.y*zone.ry-release.y)*e+offset.y*zone.ry,q};
+ const q=Math.max(0,Math.min(1,t/p.duration)),offset=pitchOffset(p,q),side=reverseX?-1:1;
+ // The same flight recedes quickly from the mound camera and approaches the
+ // hitter with increasing apparent speed. It never restarts at a new landmark.
+ const progress=q===0||q===1?q:reverseX?q/(.42+.58*q):.42*q/(1-.58*q);
+ const vertical=progress**(1+Math.max(0,p.movement?.drop??0)*.45);
+ return {x:release.x+(zone.x+side*p.x*zone.rx-release.x)*progress+side*offset.x*zone.rx,
+  y:release.y+(zone.y-p.y*zone.ry-release.y)*vertical+offset.y*zone.ry,q,progress};
 }

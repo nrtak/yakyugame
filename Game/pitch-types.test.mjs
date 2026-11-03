@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {PITCH_TYPES,PITCHER_EXTRAS,pitcherRepertoire,pitchMovement,pitchOffset,projectPitch} from './pitch-types.mjs';
+import {PITCH_TYPES,PITCH_FLIGHT_SECONDS,PITCHER_EXTRAS,pitcherRepertoire,pitchMovement,pitchOffset,projectPitch} from './pitch-types.mjs';
 import {createMatch,currentPitcher,makeMatchPitch} from './match-engine.mjs';
 import {DeviceGame} from './device-game.mjs';
 const captainIds=['aqua-pearls-nina','blue-comets-chloe','coral-club-emma','crimson-hawks-daniel','emerald-dragons-kenta','forest-foxes-oliver','golden-suns-hana','navy-stars-ryan','sakura-blossoms-yui','sand-dunes-leo'];
@@ -28,6 +28,6 @@ test('CPU and human pitches use the same fixed repertoire and preserve pitcher i
   for(const kind of allowed)assert.equal(makeMatchPitch(m,{kind}).kind,kind);
   assert.throws(()=>makeMatchPitch(m,{kind:'imaginary'}),/repertoire/);
  }
- const g=new DeviceGame({teamId:'navy-stars'});g.start();assert.equal(g.choosePitch('sinker'),true);assert.equal(g.choosePitch('knuckle'),false);g.releasePitch();assert.equal(g.pitch.kind,'sinker');assert.equal(g.pitch.duration,1.25*1.04);g.reset();assert.equal(g.repertoire.includes('sinker'),true);assert.equal(g.pitchKind,'fast');
- const m=createMatch();assert.equal(makeMatchPitch(m,{kind:'fast'}).duration,1.25);
+ const g=new DeviceGame({teamId:'navy-stars'});g.start();assert.equal(g.choosePitch('sinker'),true);assert.equal(g.choosePitch('knuckle'),false);g.releasePitch();assert.equal(g.pitch.kind,'sinker');assert.equal(g.pitch.duration,PITCH_FLIGHT_SECONDS.standard*1.04);g.reset();assert.equal(g.repertoire.includes('sinker'),true);assert.equal(g.pitchKind,'fast');
+ const m=createMatch();assert.equal(makeMatchPitch(m,{kind:'fast'}).duration,PITCH_FLIGHT_SECONDS.standard);
 });

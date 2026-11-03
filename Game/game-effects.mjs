@@ -21,7 +21,7 @@ export function effectForEvent(event){
  if(event.kind==='flyout'&&event.diving===true)return 'divingCatch';
  return ['single','double','triple','homerun','strikeout'].includes(event.kind)?event.kind:null;
 }
-export function isExceptionalFastball(pitch){return pitch?.kind==='fast'&&Number.isFinite(pitch.duration)&&pitch.duration>0&&pitch.duration<=1;}
+export function isExceptionalFastball(pitch){return pitch?.kind==='fast'&&Number.isFinite(pitch.duration)&&pitch.duration>0&&(pitch.speedClass?pitch.speedClass==='quick':pitch.duration<=1);}
 export class GameEffects{
  constructor(){this.clear();}
  clear(){this.current=null;this.queue=[];this.time=0;this.seen=new Set();}

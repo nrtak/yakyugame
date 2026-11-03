@@ -160,3 +160,31 @@
 #game[data-play-mode=field] #hud>b,#game[data-play-mode=field] #hud>span{padding:3px 2px}
 #fielding-menu>label{display:grid;gap:6px}#fielding-team{margin:0}#fielding-drill-results{text-align:left;padding-left:24px}#fielding-drill-results li{margin:8px 0}#fielding-error{color:#a53132}
 #tag-runner{position:absolute;left:3%;bottom:14%;width:28%;min-height:44px;z-index:3;background:#b7811c;border:2px solid #ffedb0;font-size:clamp(12px,3dvh,22px)}
+
+/* A reserved bottom rail keeps every defensive action off the live field. */
+#defense-rail{position:absolute;left:3%;right:3%;bottom:1%;height:14%;display:flex;align-items:stretch;gap:8px;z-index:3}
+#defense-rail #throws{position:static;display:flex;flex:1;gap:6px;width:auto;height:auto;inset:auto;padding:0;background:none;border:0}
+#defense-rail [data-base]{position:static;flex:1;min-width:0;width:auto;min-height:44px;padding:3px 5px;border-radius:9px}
+#defense-rail [data-base] b{display:block;font-size:clamp(11px,2.8dvh,19px)}
+#defense-rail [data-base] small{display:block;font-size:clamp(10px,2.4dvh,15px)}
+#defense-rail[data-expanded=true] [data-base] small{display:none}
+#defense-rail #tag-runner{position:static;flex:1;width:auto;min-height:44px;padding:4px}
+#defense-more{max-width:23%;font-size:clamp(10px,2.7dvh,17px);padding:4px 8px;background:#34596d}
+#game[data-play-mode=field] #message{left:3%;right:3%;bottom:15.4%;height:4.6%;padding:0 6px;font-size:clamp(10px,2.6dvh,16px);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:none}
+#game-start{position:absolute;z-index:6;top:28%;left:8%;width:84%;padding:18px 12px;text-align:center;color:#fff;background:#102f49f2;border:2px solid #ffd875;border-radius:16px;box-shadow:0 5px 25px #1237;pointer-events:none}
+#game-start strong,#game-start span,#game-start small{display:block}
+#game-start strong{font-size:clamp(25px,7dvh,52px);color:#ffdf84;letter-spacing:.04em}
+#game-start span{font-size:clamp(15px,4dvh,28px);font-weight:850;margin:6px}
+#game-start small{font-size:clamp(12px,3dvh,21px)}
+#hud #count{display:flex;align-items:center;justify-content:center;gap:12px;min-height:24px}
+.base-diamond{position:relative;display:inline-block;width:39px;height:22px;flex:none}
+.score-base{position:absolute;width:8px;height:8px;border:1px solid #f7fbff;background:#254a64;transform:rotate(45deg)}
+.score-base.occupied{background:#ffda69;border-color:#ffedb3}
+.score-base.base-1{right:1px;top:10px}.score-base.base-2{left:15px;top:1px}.score-base.base-3{left:1px;top:10px}
+.score-home{position:absolute;width:5px;height:5px;left:17px;bottom:0;background:#f7fbff;clip-path:polygon(0 0,100% 0,100% 50%,50% 100%,0 50%)}
+#line-score{overflow-x:auto;margin:12px 0 18px}
+#line-score table{white-space:nowrap;text-align:center;font-variant-numeric:tabular-nums}
+#line-score caption{text-align:left;font-weight:800;padding:4px 0 8px}
+#line-score th,#line-score td{text-align:center;min-width:25px;padding:6px 5px}
+#line-score th:first-child{text-align:left}
+#line-score th:nth-last-child(-n+2),#line-score td:nth-last-child(-n+2){font-weight:900;background:#e6eee6}
