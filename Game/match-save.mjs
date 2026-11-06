@@ -1,11 +1,12 @@
 import {DeviceGame} from './device-game.mjs';
 import {TEAMS,allPlayers} from './rosters.mjs';
 import {pitcherRepertoire} from './pitch-types.mjs';
+import {stealChoices} from './match-engine.mjs';
 export const MATCH_SAVE_KEY='yakyugame.match-saves.v1';
 const clone=v=>structuredClone(v),uint=n=>Number.isSafeInteger(n)&&n>=0&&n<=100000;
 export function captureMatchCheckpoint(game){
  if(['menu','final'].includes(game.phase)||game.match.over)return null;
- return{version:1,kind:'pitch-checkpoint',settings:{teamId:game.teamId,homeTeamId:game.homeTeamId,seed:game.seed,innings:game.regulationInnings,assisted:game.assisted,difficulty:game.difficulty,pitchKind:game.pitchKind},match:clone(game.match)};
+ return{version:1,kind:'pitch-checkpoint',settings:{teamId:game.teamId,homeTeamId:game.homeTeamId,seed:game.seed,innings:game.regulationInnings,assisted:game.assisted,difficulty:game.difficulty,pitchKind:game.pitchKind,manualFielding:game.manualFielding,stealIntent:game.steal?.runnerId??game.stealIntent??null},match:clone(game.match)};
 }
 export function resumeMatchCheckpoint(value){
  const s=value?.settings,m=value?.match;
@@ -28,6 +29,7 @@ export function resumeMatchCheckpoint(value){
   }
  }
  game.inning.match=clone(m);game.pitchKind=game.repertoire.includes(s.pitchKind)?s.pitchKind:'fast';
+ if(s.manualFielding!==undefined&&typeof s.manualFielding!=='boolean'||s.stealIntent!=null&&!stealChoices(m).some(c=>c.runnerId===s.stealIntent))throw Error('Invalid saved fielding or steal choice');game.stealIntent=s.stealIntent??null;
  // Active pitch/field animation is intentionally restarted. Completed outcomes
  // already in match are never replayed or awarded again.
  return game;

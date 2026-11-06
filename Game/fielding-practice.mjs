@@ -7,7 +7,7 @@ export const FIELDING_DRILLS=[
  {id:'shortstop',title:'Grounder to shortstop',hint:'Secure the ball, then throw to first.',target:{x:-40,y:115}},
  {id:'catcher',title:'Slow roller near home',hint:'Let the catcher gather it, then choose a base.',target:{x:0,y:4},ballTravel:.6},
  {id:'outfield',title:'Grounder to right field',hint:'Track the runner and get the ball back to first.',target:{x:120,y:210}},
- {id:'fly',title:'Center-field fly ball',hint:'Follow the catch. No throw is needed for the fly out.',contact:{quality:.6,launchAngle:40,direction:0}},
+ {id:'fly',title:'Center-field fly ball',hint:'Move the ringed center fielder under the landing target.',contact:{quality:.5,launchAngle:40,direction:0}},
  {id:'relay',title:'Runner on first',hint:'Try a force at second, then continue the relay to first.',target:{x:-40,y:115},runnerOnFirst:true},
  {id:'tag',title:'First, then tag at second',hint:'Take the out at first. Throw to second, then tap Tag Runner.',target:{x:64,y:66},runnerOnFirst:true,tagSequence:true}
 ];
@@ -15,9 +15,9 @@ export const FIELDING_DRILLS=[
 // Uses the same possession, force, receiver and runner clocks as a real game.
 // Practice results are session-only and never enter match/profile statistics.
 export class FieldingPractice{
- constructor({teamId='navy-stars'}={}){
+ constructor({teamId='navy-stars',manualFielding=false}={}){
   this.team=TEAMS.find(t=>t.id===teamId);if(!this.team)throw Error('Unknown practice team');
-  this.offense=TEAMS.find(t=>t.id!==teamId);this.teamId=teamId;this.userBatting=false;
+  this.offense=TEAMS.find(t=>t.id!==teamId);this.teamId=teamId;this.userBatting=false;this.manualFielding=!!manualFielding;
   this.index=0;this.phase='ready';this.paused=false;this.results=[];this.play=null;
  }
  get drill(){return FIELDING_DRILLS[this.index];}
@@ -26,9 +26,12 @@ export class FieldingPractice{
  start(){if(this.paused||this.phase!=='ready')return false;
   const d=this.drill,options={...rigDefenseSettings(this.teamId),teamId:this.teamId,batterId:this.offense.players[0].id,bases:[d.runnerOnFirst?this.offense.players[1].id:null,null,null],...(d.tagSequence?{runnerTimes:{[this.offense.players[1].id]:6}}:{}),outs:0};
   this.play=d.contact?new FlightDefense({...options,contact:d.contact}):new GroundDefense({...options,target:{...d.target},ballTravel:d.ballTravel??1.5});
+  if(this.manualFielding)this.play.enableManualFielding();
   this.phase='field';return true;
  }
  throwTo(base){return !this.paused&&this.phase==='field'?this.play.throwTo(base):false;}
+ setFielderInput(x,y){return !this.paused&&this.phase==='field'?this.play.setFielderInput(x,y):false;}
+ performFieldAction(){return !this.paused&&this.phase==='field'?this.play.performFieldAction():false;}
  tagRunner(){return !this.paused&&this.phase==='field'?this.play.tagRunner():false;}
  step(dt){if(!Number.isFinite(dt)||dt<0)throw Error('Invalid practice time');if(this.paused||this.phase!=='field')return;
   this.play.step(Math.min(.05,dt));if(!this.play.finished)return;

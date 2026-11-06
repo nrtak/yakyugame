@@ -1,12 +1,14 @@
 import {approvedFieldPose,APPROVED_FIELD_CAST} from './field-atlas.mjs';
 import {CATCHER_CAST,catcherFieldPose} from './opposing-art.mjs';
-import {fieldLocomotionPose} from './field-motion.mjs';
+import {fieldLocomotionPose,fieldActionPose} from './field-motion.mjs';
 import {fieldControlPose} from './field-control-art.mjs';
 import {fieldThrowPose} from './field-throw-art.mjs';
 import {fieldReceivePose} from './field-receive-art.mjs';
 import {fieldRelayPose} from './field-relay-art.mjs';
 import {secondBasePose} from './second-base-art.mjs';
 import {secondPivotPose} from './second-pivot-art.mjs';
+import {fieldProject} from './field-camera.mjs';
+export {fieldProject};
 // Source coordinates are registered to the feet; images are never mirrored.
 export const LIVE_FIELD_POSES={
  kenRunA:{asset:'fielder',rect:[0,0,510,1024],anchor:[240,900],glove:[330,665]},
@@ -18,13 +20,13 @@ export const LIVE_FIELD_POSES={
  miaCatch:{asset:'flyFielder',rect:[0,0,545,1024],anchor:[280,960],glove:[345,100]}
 };
 export const LIVE_FIELD_SCALE=.14;
-export function fieldProject(p){const d=1+.008982*p.y;return{x:768+11.608*p.x/d,y:(870-1.447*p.y)/d};}
 export const fieldPoseDefinition=pose=>typeof pose==='string'?LIVE_FIELD_POSES[pose]:pose;
 export function poseGround(pose,p){const f=fieldPoseDefinition(pose),bag=f?.originBagPoint??(f?.bagFoot&&p.bagContact);return fieldProject(bag?{x:bag.x+(f.bagGroundOffset?.x??0),y:bag.y+(f.bagGroundOffset?.y??0)}:p.point);}
 // The receiver may still be running from the other side of the thrower.
 // Select a directional drawing from the committed flight, not that moving body.
 const throwsRight=(s,p,receiver)=>(s.throwEnd??receiver?.point)?.x>(s.throwStart??p.point).x;
 export function liveFieldPose(s,p){
+ if(p.fieldAction)return fieldActionPose(s,p);
  const pivot=secondPivotPose(s,p);if(pivot)return pivot;
  const second=secondBasePose(s,p);if(second)return second;
  if(p.tagging)return null;

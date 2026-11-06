@@ -13,7 +13,7 @@ export function lineScoreRows(match){
  return matchTeams(match).map((team,side)=>({team:team.name,short:team.short,innings:[...match.lineScore[side]],runs:match.score[side],hits:match.hits[side]}));
 }
 export function renderMatchCount(element,game){
- const m=game.match,field=game.phase==='field',outs=game.phase==='review'&&game.event?.halfEnded?3:m.outs+(field?game.defense?.playOuts??0:0);
+ const m=game.match,field=game.phase==='field'||game.phase==='steal',outs=game.phase==='review'&&game.event?.halfEnded?3:m.outs+(field?game.defense?.playOuts??0:0);
  const count=`B ${m.balls} · S ${m.strikes} · O ${outs}`,description=baseDescription(m,{inPlay:field});
  const document=element.ownerDocument,text=document.createElement('span'),diamond=document.createElement('span');
  text.textContent=count;diamond.className='base-diamond';diamond.setAttribute('role','img');diamond.setAttribute('aria-label',description);diamond.title=description;

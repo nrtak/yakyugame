@@ -39,6 +39,7 @@
     "native-pitch-data.mjs",
     "pitching-art.mjs",
     "defense-batting-art.mjs",
+    "field-action-data.mjs",
     "field-motion.mjs",
     "field-control-art.mjs",
     "field-throw-art.mjs",

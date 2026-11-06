@@ -3,6 +3,8 @@ export const FIELD_CUT_TIME=.14;
 export const FIELD_PLAY_DURATION=6.2;
 export const FIRST_BASE={x:1238,y:495};
 export const RUNNER_ARRIVAL=4.45;
+// Shared field-to-canvas registration for actors, landing guides and controls.
+export function fieldProject(p){const d=1+.008982*p.y;return{x:768+11.608*p.x/d,y:(870-1.447*p.y)/d};}
 export function firstBaseCall({catchTime,runnerTime,bagTouchTime=0,controlled=true}){
  return controlled&&Math.max(catchTime,bagTouchTime)<runnerTime-1e-8?'out':'safe';
 }

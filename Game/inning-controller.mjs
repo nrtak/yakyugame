@@ -12,7 +12,9 @@ export class InningController {
  get actors(){return {batter:currentBatter(this.match),pitcher:currentPitcher(this.match)};}
  beginContact(contact){if(this.pending||this.match.over)throw Error('Cannot begin another play');this.pending={phase:'hit',clock:0,result:{...contact},applied:false};}
  beginDefense(options={}){if(this.pending||this.match.over)throw Error('Cannot begin another play');const teamId=matchTeams(this.match)[1-this.match.half].id;this.pending=new GroundDefense({...rigDefenseSettings(teamId),...options,teamId,batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});return this.pending.state;}
- beginFlight(contact,{pitchKind}={}){if(this.pending||this.match.over)throw Error('Cannot begin another play');const teamId=matchTeams(this.match)[1-this.match.half].id;this.pending=new FlightDefense({...rigDefenseSettings(teamId),contact,teamId,batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});this.pending.pitchKind=pitchKind;return this.pending.state;}
+ beginFlight(contact,{pitchKind,manualFielding=false,runnerAdvances={},runnerStarts={},runnerTimes={}}={}){if(this.pending||this.match.over)throw Error('Cannot begin another play');const teamId=matchTeams(this.match)[1-this.match.half].id;this.pending=new FlightDefense({...rigDefenseSettings(teamId),contact,teamId,runnerAdvances,runnerStarts,runnerTimes,batterId:this.actors.batter.id,bases:this.match.bases,outs:this.match.outs});if(manualFielding)this.pending.enableManualFielding();this.pending.pitchKind=pitchKind;return this.pending.state;}
+ setFielderInput(x,y){return this.pending instanceof GroundDefense?this.pending.setFielderInput(x,y):false;}
+ performFieldAction(){return this.pending instanceof GroundDefense?this.pending.performFieldAction():false;}
  throwTo(base){return this.pending instanceof GroundDefense?this.pending.throwTo(base):false;}
  tagRunner(id){return this.pending instanceof GroundDefense?this.pending.tagRunner(id):false;}
  get defenseState(){return this.pending instanceof GroundDefense?this.pending.state:null;}

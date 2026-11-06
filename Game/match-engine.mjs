@@ -1,4 +1,4 @@
-import { seededRandom } from './engine.mjs';
+import { seededRandom,PITCH_WINDUP_SECONDS } from './engine.mjs';
 import { TEAMS, allPlayers, playerById } from './rosters.mjs';
 import {PITCH_TYPES,PITCH_FLIGHT_SECONDS,pitcherRepertoire,pitchMovement} from './pitch-types.mjs';
 import {cpuDifficulty} from './cpu-difficulty.mjs';
@@ -17,6 +17,13 @@ export const battingTeam = m => TEAMS.indexOf(matchTeams(m)[m.half]);
 export const fieldingTeam = m => TEAMS.indexOf(matchTeams(m)[1-m.half]);
 export const currentBatter = m => TEAMS[battingTeam(m)].players[m.order[m.half]%9];
 export const currentPitcher = m => TEAMS[fieldingTeam(m)].players.find(p=>p.position==='P');
+export function stealChoices(match){return match.bases.flatMap((id,i)=>id&&i<2&&!match.bases[i+1]?[{runnerId:id,from:i+1,to:i+2,name:playerById(id).name}]:[]);}
+export function makeStealAttempt(match,runnerId,startedAt,pitchDuration){
+ const choice=stealChoices(match).find(c=>c.runnerId===runnerId);if(!choice||!Number.isFinite(startedAt)||startedAt<0||startedAt>PITCH_WINDUP_SECONDS||!Number.isFinite(pitchDuration)||pitchDuration<=0||pitchDuration>3)throw Error('Invalid steal attempt');
+ const runner=playerById(runnerId),catcher=matchTeams(match)[1-match.half].players.find(p=>p.position==='C'),speed=18+(runner.speed-50)*.13,lead=choice.from===1?14:16;
+ const departAt=startedAt+.08,runDuration=(90-lead)/speed,arrivalAt=departAt+runDuration,throwDistance=choice.to===2?90*Math.sqrt(2):90,throwSpeed=95+(catcher.power-60)*.65,releaseAt=PITCH_WINDUP_SECONDS+pitchDuration+.45,controlAt=releaseAt+throwDistance/throwSpeed,tagAt=Math.max(controlAt+.10,arrivalAt-2/speed);
+ return{...choice,startedAt,pitchDuration,departAt,runDuration,lead,speed,arrivalAt,releaseAt,controlAt,tagAt,safe:arrivalAt<=tagAt+1e-8,clock:startedAt,endAt:Math.max(arrivalAt,tagAt)+.45,catcherId:catcher.id};
+}
 export const GROUND_PLAY={arrival:1.05,transfer:.12,flight:.58,runner:1.95,contactHold:.1,maxDelay:.75};
 export function throwAtFirst(outcome,delay=0){
   if(outcome.kind!=='groundout')return {...outcome};
@@ -62,6 +69,8 @@ function switchHalf(m,event){
 function applyDefense(m,outcome,event,batter,stats){
   const c=outcome.context;
   if(!c||c.teamId!==TEAMS[fieldingTeam(m)].id||c.batterId!==batter.id||c.outs!==m.outs||JSON.stringify(c.bases)!==JSON.stringify(m.bases))throw Error('Stale defensive play context');
+  for(const [id,to] of Object.entries(c.runnerAdvances??{}))if(!m.bases.includes(id)||to!==m.bases.indexOf(id)+2||to>3||m.bases[to-1])throw Error('Invalid runner advance context');
+  for(const [id,q] of Object.entries(c.runnerStarts??{}))if(!m.bases.includes(id)||!Number.isFinite(q)||q<0||q>=1)throw Error('Invalid runner lead context');
   const forces={'1B':batter.id};let chain=true;
   for(let i=0;i<3;i++){chain=chain&&Boolean(m.bases[i]);if(chain)forces[['2B','3B','HOME'][i]]=m.bases[i];}
   const retired=outcome.retired;
@@ -72,8 +81,8 @@ function applyDefense(m,outcome,event,batter,stats){
     const from=m.bases.indexOf(r.id),behind=r.id===batter.id?[]:[batter.id,...m.bases.slice(0,from).filter(Boolean)];
     if(r.force===true){if(forces[r.base]!==r.id||checked.has(r.id)||behind.some(id=>checked.has(id)))throw Error('Invalid or removed force');}
     else if(r.force===false){
-     const to=['1B','2B','3B','HOME'].indexOf(r.base)+1,arriveAt=c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55),d=90/Math.sqrt(2),points=[{x:0,y:0},{x:d,y:d},{x:0,y:2*d},{x:-d,y:d},{x:0,y:0}],q=r.at/arriveAt;
-     if(from<0||checked.has(r.id)||forces[r.base]!==r.id||to!==from+2||!behind.some(id=>checked.has(id)))throw Error('Invalid tag runner or active force');
+     const to=['1B','2B','3B','HOME'].indexOf(r.base)+1,arriveAt=c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55),d=90/Math.sqrt(2),points=[{x:0,y:0},{x:d,y:d},{x:0,y:2*d},{x:-d,y:d},{x:0,y:0}],q=(c.runnerStarts?.[r.id]??0)+(1-(c.runnerStarts?.[r.id]??0))*r.at/arriveAt;
+     if(from<0||checked.has(r.id)||to!==from+2||!(c.runnerAdvances?.[r.id]===to||forces[r.base]===r.id&&behind.some(id=>checked.has(id))))throw Error('Invalid tag runner or active force');
      const start=points[from+1],end=points[to],expected={x:start.x+(end.x-start.x)*q,y:start.y+(end.y-start.y)*q},tag=r.tag;
      if(!tag||!Number.isFinite(tag.controlAt)||tag.controlAt>r.at||!TEAMS[fieldingTeam(m)].players.some(p=>p.id===tag.holderId)||!tagContactValid({at:r.at,arriveAt,holderPoint:tag.holderPoint,runnerPoint:tag.runnerPoint,startPoint:start})||Math.hypot(tag.runnerPoint.x-expected.x,tag.runnerPoint.y-expected.y)>1e-6)throw Error('Tag lacks controlled runner contact');
      const zone=c.tagZoneById?.[tag.holderId];
@@ -84,7 +93,7 @@ function applyDefense(m,outcome,event,batter,stats){
     if(hasTags&&(!Number.isFinite(r.at)||r.at<previousAt))throw Error('Invalid retirement clock');previousAt=r.at;checked.add(r.id);
   }
   const retiredIds=new Set(retired.map(r=>r.id)),third=m.outs+retired.length===3?retired.at(-1):null,cancelRuns=third&&(third.force||third.id===batter.id);
-  const movements=[{id:batter.id,base:1},...m.bases.map((id,i)=>id?{id,base:forces[['2B','3B','HOME'][i]]===id?i+2:i+1}:null).filter(Boolean)].filter(r=>!retiredIds.has(r.id));
+  const movements=[{id:batter.id,base:1},...m.bases.map((id,i)=>id?{id,base:forces[['2B','3B','HOME'][i]]===id||c.runnerAdvances?.[id]===i+2?i+2:i+1}:null).filter(Boolean)].filter(r=>!retiredIds.has(r.id));
   const destinations=movements.filter(r=>r.base<4),runs=cancelRuns?[]:movements.filter(r=>r.base===4&&(!third||(c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55))<third.at-1e-8)).map(r=>r.id);
   const same=(a,b)=>JSON.stringify(a.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))))===JSON.stringify(b.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))));
   if(!Array.isArray(outcome.destinations)||!Array.isArray(outcome.runs)||!same(outcome.destinations,destinations)||!same(outcome.runs,runs))throw Error('Invalid defensive runner destinations');
@@ -127,6 +136,12 @@ export function applyOutcome(match,outcome){
     }
     case 'groundout':case 'flyout':m.outs++;stats.ab++;event.atBatEnded=true;event.title=outcome.kind==='flyout'?`${batter.name} flies out`:`${batter.name} grounds out`;break;
     default:throw new Error(`Unknown outcome ${outcome.kind}`);
+  }
+  // Resolve the steal on this pitch, once. Fouls and an inning-ending pitch
+  // return/cancel the attempt; forced advancement on a walk is not a steal.
+  if(outcome.steal&&!['foul','single','double','triple','homerun','groundout','flyout','defensiveplay','groundruledouble'].includes(outcome.kind)&&m.outs<3){
+    const a=makeStealAttempt(match,outcome.steal.runnerId,outcome.steal.startedAt,outcome.steal.pitchDuration);
+    if(m.bases[a.from-1]===a.runnerId&&!m.bases[a.to-1]){m.bases[a.from-1]=null;if(a.safe)m.bases[a.to-1]=a.runnerId;else m.outs++;event.steal={runnerId:a.runnerId,from:a.from,to:a.to,safe:a.safe,arrivalAt:a.arrivalAt,controlAt:a.controlAt,tagAt:a.tagAt};event.detail+=(event.detail?' ':'')+a.name+(a.safe?' steals ':' is caught stealing ')+(a.to===2?'second.':'third.');event.title+=' · '+(a.safe?a.name+' steals '+(a.to===2?'second':'third'):a.name+' is caught stealing');}
   }
   if(event.runs&&event.playType!=='doubleplay'&&event.playType!=='tripleplay')stats.rbi+=event.runs;
   event.afterBases=[...m.bases];event.outsAfterPlay=m.outs;event.countAfterPlay=[m.balls,m.strikes];

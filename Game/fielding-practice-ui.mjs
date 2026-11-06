@@ -9,20 +9,20 @@ export function createFieldingPracticeUI({renderer,defenseControls,overlay,showM
  function stop(){epoch++;session=null;signature='';summaryShown=false;$('fielding-start').disabled=false;}
  async function start(){const token=++epoch,teamId=$('fielding-team').value;$('fielding-start').disabled=true;$('fielding-error').textContent='';
   try{await renderer.ready;await renderer.prepareDefense(teamId,{runnerIds:TEAMS.find(t=>t.id!==teamId).players.slice(0,2).map(p=>p.id)});if(token!==epoch)return;
-   onStart();session=new FieldingPractice({teamId});session.start();session.paused=document.hidden;signature='';summaryShown=false;update();
+   onStart();session=new FieldingPractice({teamId,manualFielding:true});session.start();session.paused=document.hidden;signature='';summaryShown=false;update();
   }catch{if(token===epoch)$('fielding-error').textContent='The field images could not load. Tap Start to try again.';}
   finally{if(token===epoch)$('fielding-start').disabled=false;}
  }
- function draw(){if(!session?.defense)return;const s=session.defense;renderer.drawDefense({...s,controlRail:true,reducedMotion:reducedMotion(),showCall:false,showReviewNotice:false,runnerNames:Object.fromEntries(s.runners.map(r=>[r.id,playerById(r.id).name]))});}
+ function draw(){if(!session?.defense)return;const s=session.defense;renderer.drawDefense({...s,controlRail:true,reducedMotion:reducedMotion(),showCall:false,showReviewNotice:false,throwTargets:true,runnerNames:Object.fromEntries(s.runners.map(r=>[r.id,playerById(r.id).name]))});defenseControls.position(renderer.metrics.defenseCamera);}
  function refresh(){if(!session)return;const p=session,s=p.defense,summary=p.phase==='summary',controls=gameControls(p),feedback=defenseFeedback(s);
-  const key=JSON.stringify([p.phase,p.paused,p.index,s.phase,s.ballOwnerId,s.call,s.canThrow,s.canTag,s.tagPending,s.recommendation,s.playOuts,s.throwOptions.map(o=>[o.base,o.force,o.out,o.tagRequired])]);if(key===signature)return;signature=key;
+  const key=JSON.stringify([p.phase,p.paused,p.index,s.phase,s.ballOwnerId,s.call,s.canThrow,s.canFieldAction,s.canTag,s.tagPending,s.recommendation,s.playOuts,s.throwOptions.map(o=>[o.base,o.force,o.out,o.tagRequired])]);if(key===signature)return;signature=key;
   $('game').dataset.playMode='field';$('game').classList.toggle('menu-open',p.paused||summary);
   $('hud').hidden=summary;$('coral').textContent=p.team.short;$('coral').style.background=p.team.color;$('half').textContent='DRILL '+(p.index+1)+'/'+FIELDING_DRILLS.length;$('navy').textContent='OUTS '+(p.summary.outs+(p.phase==='field'?(s.playOuts??0):0));$('navy').style.background='#254e6b';$('count').textContent=p.drill.title;
   $('pause').hidden=summary;$('pause').disabled=summary;$('phase-label').hidden=summary;$('phase-label').textContent='FIELDING PRACTICE';$('replay-tips').hidden=true;
   for(const id of['action','pad','pitch-picker','pitches','control-hint'])$(id).hidden=true;
-  defenseControls.render(controls,s,{active:!summary&&p.phase==='field'});
+  defenseControls.render(controls,s,{active:!summary&&p.phase==='field'});$('move-pad').hidden=!controls.moveVisible;$('move-pad').setAttribute('aria-disabled',String(!controls.moveEnabled));
   $('possession').hidden=summary;$('possession').textContent=feedback.possession;$('play-call').hidden=summary||!feedback.call;$('play-call').textContent=feedback.call;$('play-call').dataset.tone=feedback.tone;
-  $('message').hidden=summary;$('message').textContent=p.phase==='review'?p.results.at(-1).detail:s.tagPending?'Ready to tag · Waiting for the runner':s.canTag?'Tap Tag Runner · An out needs a tag':s.canThrow?'Ball secured · Tap a base to throw':s.phase==='throw'?'Throw to '+({'1B':'first base','2B':'second base','3B':'third base',HOME:'home plate'}[s.target]??'the receiver'):s.phase==='caught'?'Caught · Batter out':p.drill.hint;
+  $('message').hidden=summary;$('message').textContent=p.phase==='review'?p.results.at(-1).detail:s.moveEnabled?'Move '+s.players.find(p=>p.id===s.activeFielderId)?.name+' to the ball target':s.tagPending?'Ready to tag · Waiting for the runner':s.canTag?'Tap Tag Runner · An out needs a tag':s.canThrow?'Ball secured · Tap a base to throw':s.phase==='throw'?'Throw to '+({'1B':'first base','2B':'second base','3B':'third base',HOME:'home plate'}[s.target]??'the receiver'):s.phase==='caught'?'Caught · Batter out':p.drill.hint;
   $('next').hidden=p.phase!=='review';$('next').disabled=p.paused;$('next').textContent=p.index===FIELDING_DRILLS.length-1?'See Practice Results →':'Next Drill →';
   if(summary){if(!summaryShown){$('fielding-score').textContent=p.summary.drills+' drills complete · '+p.summary.outs+' outs · '+p.summary.throws+' throws';$('fielding-drill-results').replaceChildren(...p.results.map(r=>{const li=document.createElement('li');li.textContent=r.title+' · '+r.outs+' out'+(r.outs===1?'':'s')+' · '+(r.throws.length?r.throws.join(' → '):'No throw');return li;}));summaryShown=true;}overlay('fielding-results');}
   else overlay(p.paused?'paused':null);
