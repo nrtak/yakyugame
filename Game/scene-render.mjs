@@ -6,7 +6,7 @@ import {BASE_POINTS} from './defense-play.mjs';
 import {APPROVED_FIELD_ASSETS,APPROVED_FIELD_CAST,approvedFieldPose} from './field-atlas.mjs';
 import {OPPOSING_ASSETS,CATCHER_CAST,opposingBatterPose,catcherPose,opposingArtKeys,catcherAction,catcherFieldPose} from './opposing-art.mjs';
 import {RUNNING_ASSETS,liveRunnerPose,runningArtKeysForDefense,runningArtKeysForPlayers,runningFrameDefinitions} from './running-art.mjs';
-import {DEFENSIVE_PITCH_ASSETS,DEFENSIVE_PITCH_CAST,defensivePitcherPose,defensivePitcherFrame,defensivePitcherIdle,defensivePitcherPoint,defensiveRelease,NATIVE_PITCH_ASSETS,nativePitcherPose,nativePitchRelease} from './pitching-art.mjs';
+import {DEFENSIVE_PITCH_ASSETS,DEFENSIVE_PITCH_CAST,defensivePitcherPose,defensivePitcherFrame,defensivePitcherIdle,defensivePitcherPoint,defensiveRelease,NATIVE_PITCH_ASSETS,nativePitcherPose,nativePitchRelease,pitchFollowThroughTime,PITCH_FINISH_SECONDS} from './pitching-art.mjs';
 import {DEFENSE_BATTING_ASSETS,defenseBatterPose,defenseBatterKeys,defensiveBatterFrame} from './defense-batting-art.mjs';
 import {usesFieldView,fieldPlay} from './field-camera.mjs';
 import {LIVE_FIELD_POSES,LIVE_FIELD_SCALE,fieldProject,liveFieldPose,liveBallPoint,fieldBallIsPainted,poseGround,fieldPoseDefinition} from './live-field-art.mjs';
@@ -111,6 +111,10 @@ SCENE_ASSETS.emmaPitchRecovery='assets/scene-coral-club-emma-pitch-home-recovery
 export function characterPitcherPose(id,frame){
  // Historical five-phase review accessor. Live Emma rendering/release uses
  // her own native clip below; do not infer production motion from this alone.
+ // Ryan's follow-through drawing has a raised rear leg. His own approved
+ // front-facing field-ready drawing supplies the subsequent two-foot finish.
+ // Keep the same LEFT landing sole fixed; no reflection or new artwork.
+ if(id==='navy-stars-ryan'&&frame===5)return{asset:'fieldnavystarsryan',sourceWidth:1254,rect:[35,25,375,385],anchor:[372,395],world:[870.75,564],scale:.44,support:'L',throws:'R',gloveHand:'L',phase:'settled',feetGrounded:{L:true,R:true},containsBall:false};
  if(id==='navy-stars-ryan')return PITCHER_POSES[frame]??null;
  if(id==='coral-club-emma'&&(frame===0||frame===1))return{asset:frame===0?'emmaPitchSet':'emmaPitchLift',sourceWidth:1024,rect:[0,0,1024,1536],anchor:[750,1435],world:[957,546],support:'L'};
  if(id==='coral-club-emma'&&frame===2)return{asset:'emmaPitchStride',sourceWidth:1376,sourceSize:[1376,1538],rect:[0,0,1376,1538],anchor:[370,1410],world:[870.75,564],support:'R',rearPivot:[880,1265]};
@@ -118,13 +122,21 @@ export function characterPitcherPose(id,frame){
  if(id==='coral-club-emma'&&frame===4)return{asset:'emmaPitchRecovery',sourceWidth:1255,sourceSize:[1255,1690],rect:[0,0,1255,1690],anchor:[790,1520],world:[870.75,564],support:'R'};
  return null;
 }
+export function pitcherFallbackLabel(s){
+ const hand=s.pitcherHand??playerById(s.pitcherId)?.throws;
+ return (s.pitcherName??'Pitcher')+' · '+(hand==='L'?'LHP':hand==='R'?'RHP':'P');
+}
+export function characterPitcherMotionPose(s){
+ const id=s.pitcherId??'navy-stars-ryan',t=pitchFollowThroughTime(s);
+ return nativePitcherPose(s,'front')??characterPitcherPose(id,id==='navy-stars-ryan'&&t!==null&&t>=PITCH_FINISH_SECONDS?5:pitcherFrame(s));
+}
 export function pitcherPoint(frame,point){const p=PITCHER_POSES[frame];return {x:p.world[0]+(point[0]-p.anchor[0])*PITCHER_SCALE,y:p.world[1]+(point[1]-p.anchor[1])*PITCHER_SCALE};}
 export const PITCH_RELEASE_FRAME=3;
 export const PITCH_RELEASE_HAND=[130,155];
-export function characterPitchRelease(id){if(id==='coral-club-emma')return nativePitchRelease('front');const p=characterPitcherPose(id,PITCH_RELEASE_FRAME);if(!p?.releaseHand)return null;return{x:p.world[0]+(p.releaseHand[0]-p.anchor[0])*PITCHER_SCALE,y:p.world[1]+(p.releaseHand[1]-p.anchor[1])*PITCHER_SCALE};}
+export function characterPitchRelease(id){const native=nativePitchRelease('front',id);if(native)return native;const p=characterPitcherPose(id,PITCH_RELEASE_FRAME);if(!p?.releaseHand)return null;return{x:p.world[0]+(p.releaseHand[0]-p.anchor[0])*PITCHER_SCALE,y:p.world[1]+(p.releaseHand[1]-p.anchor[1])*PITCHER_SCALE};}
 // Preserve the existing hitting target while aligning the new barrel to it.
 export const BAT_CONTACT_POINT=batterPoint(2,[573+320/.9,837-320/.9]);
-export const SCENE_GEOMETRY={width:1600,height:960,zone:{...BAT_CONTACT_POINT,rx:65,ry:86},release:pitcherPoint(PITCH_RELEASE_FRAME,PITCH_RELEASE_HAND)};
+export const SCENE_GEOMETRY={width:1600,height:960,zone:{...BAT_CONTACT_POINT,rx:65,ry:86},release:characterPitchRelease('navy-stars-ryan')};
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 export function createArtLoader(paths,makeImage=()=>new Image()){
  const art={},pending=new Map(),measurements=new Map(),wanted=new Set();let peakDecodedBytes=0,loads=0,failures=0;
@@ -209,8 +221,8 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
  defenseSets['coral-club'].push('coralCatcherThrow');
  defenseSets['navy-stars'].push('navyCatcherThrow');
  for(const team of Object.keys(defenseSets))defenseSets[team].push(...runningArtKeysForDefense(team),...fieldMotionArtKeys(team),...fieldControlArtKeys(team),...fieldThrowArtKeys(team),...fieldReceiveArtKeys(team),...fieldRelayArtKeys(team),...secondBaseArtKeys(team),...secondPivotArtKeys(team));
- const legacyHomeKeys=id=>Array.from({length:5},(_,i)=>characterPitcherPose(id,i)?.asset).filter(Boolean),homePitcherKeys=id=>id==='coral-club-emma'?['emmaPitchNative']:legacyHomeKeys(id),allHomePitcherKeys=new Set(['emmaPitchNative',...legacyHomeKeys('coral-club-emma'),...legacyHomeKeys('navy-stars-ryan')]),allRunnerKeys=new Set(Object.keys(RUNNING_ASSETS));
- const batterKeys=new Set(Object.values(BATTER_CAST).flatMap(p=>[p.ready,p.motion])),venueKeys=new Set(Object.values(STADIUM_ART)),defenseKeys=new Set([...Object.values(defenseSets).flat(),...Object.keys(DEFENSIVE_PITCH_ASSETS).filter(k=>k.startsWith('defenseEmma'))]),opposingKeys=new Set([...Object.keys(OPPOSING_ASSETS),...Object.keys(DEFENSE_BATTING_ASSETS)]),pinned=Object.keys(SCENE_ASSETS).filter(key=>!key.startsWith('menu')&&!allRunnerKeys.has(key)&&!allHomePitcherKeys.has(key)&&!batterKeys.has(key)&&!venueKeys.has(key)&&!defenseKeys.has(key)&&!opposingKeys.has(key));
+ const legacyHomeKeys=id=>Array.from({length:6},(_,i)=>characterPitcherPose(id,i)?.asset).filter(Boolean),homePitcherKeys=id=>id==='coral-club-emma'?['emmaPitchNative']:legacyHomeKeys(id),allHomePitcherKeys=new Set(['emmaPitchNative','ryanPitchNative',...legacyHomeKeys('coral-club-emma'),...legacyHomeKeys('navy-stars-ryan')]),allRunnerKeys=new Set(Object.keys(RUNNING_ASSETS));
+ const batterKeys=new Set(Object.values(BATTER_CAST).flatMap(p=>[p.ready,p.motion])),venueKeys=new Set(Object.values(STADIUM_ART)),defenseKeys=new Set([...Object.values(defenseSets).flat(),...Object.keys(DEFENSIVE_PITCH_ASSETS).filter(k=>k!=='defensePitchPark'),...Object.keys(NATIVE_PITCH_ASSETS)]),opposingKeys=new Set([...Object.keys(OPPOSING_ASSETS),...Object.keys(DEFENSE_BATTING_ASSETS)]),pinned=Object.keys(SCENE_ASSETS).filter(key=>!key.startsWith('menu')&&!allRunnerKeys.has(key)&&!allHomePitcherKeys.has(key)&&!batterKeys.has(key)&&!venueKeys.has(key)&&!defenseKeys.has(key)&&!opposingKeys.has(key));
  let recent=['coral-club-emma'],currentVenue='navyScenery',currentDefense=[],currentOpposing=[],currentPitcherKeys=homePitcherKeys('navy-stars-ryan');const failedCharacters=new Set();const ready=bank.load([...pinned,'batterReady','batterMotion',currentVenue,...currentPitcherKeys]);
  function retainArt(){bank.retain([...pinned,currentVenue,...currentPitcherKeys,...currentDefense,...currentOpposing,...recent.flatMap(x=>[BATTER_CAST[x].ready,BATTER_CAST[x].motion])]);}
  async function prepareOpposing(batterId,catcherId){currentOpposing=[...opposingArtKeys(null,catcherId),...defenseBatterKeys(batterId)];retainArt();await bank.load(currentOpposing);retainArt();}
@@ -225,7 +237,7 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
  }
  function oval(x,y,rx,ry,color){c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fillStyle=color;c.fill();}
  function sprite(image,rect,anchor,world,scale,mask=null){if(mask){c.save();c.beginPath();mask.forEach((p,i)=>c[i?'lineTo':'moveTo'](world[0]+(p[0]-anchor[0])*scale,world[1]+(p[1]-anchor[1])*scale));c.closePath();c.clip();}c.drawImage(image,...rect,world[0]+(rect[0]-anchor[0])*scale,world[1]+(rect[1]-anchor[1])*scale,rect[2]*scale,rect[3]*scale);if(mask)c.restore();}
- function pitcher(frame,id='navy-stars-ryan',s={}){const p=nativePitcherPose(s,'front')??characterPitcherPose(id,frame),img=p&&art[p.asset];if(!img)return false;const k=img.naturalWidth/p.sourceWidth;oval(p.world[0],p.world[1],24,4,'#173b3e30');sprite(img,p.rect.map(v=>v*k),p.anchor.map(v=>v*k),p.world,(p.scale??PITCHER_SCALE)/k);return true;}
+ function pitcher(frame,id='navy-stars-ryan',s={}){const p=characterPitcherMotionPose({...s,pitcherId:id}),img=p&&art[p.asset];if(!img)return false;const k=img.naturalWidth/p.sourceWidth;oval(p.world[0],p.world[1],24,4,'#173b3e30');sprite(img,p.rect.map(v=>v*k),p.anchor.map(v=>v*k),p.world,(p.scale??PITCHER_SCALE)/k);return true;}
  function batter(frame,id='coral-club-emma',hand='R'){const p=characterBatterPose(id,hand,frame),img=art[p.asset],k=img.naturalWidth/p.sourceWidth;
   sprite(img,p.rect.map(v=>v*k),p.anchor.map(v=>v*k),p.world,p.scale/k);
  }
@@ -260,7 +272,7 @@ export function createSceneRenderer(canvas){const c=canvas.getContext('2d'),bank
   const id=s.batterId??'coral-club-emma',hand=s.batterHand??'R',pose=characterBatterPose(id,hand,swingFrame(s));
   if(pose&&!art[pose.asset]&&!failedCharacters.has(id))prepareBatter(id,hand).catch(()=>{});
   // No captain-clone placeholders: supporting players need their own reviewed art.
-  if(!pitcher(pitcherFrame(s),s.pitcherId??'navy-stars-ryan',s)){oval(957,490,42,42,'#173d59');c.fillStyle='white';c.font='bold 21px system-ui';c.textAlign='center';c.fillText(s.pitcherName+' · LHP',957,498);c.font='16px system-ui';c.fillText('Pitching frames in progress',957,560);c.textAlign='start';}
+  if(!pitcher(pitcherFrame(s),s.pitcherId??'navy-stars-ryan',s)){oval(957,490,42,42,'#173d59');c.fillStyle='white';c.font='bold 21px system-ui';c.textAlign='center';c.fillText(pitcherFallbackLabel(s),957,498);c.font='16px system-ui';c.fillText('Pitching frames in progress',957,560);c.textAlign='start';}
   if(pose&&art[pose.asset]){oval(470,925,87,12,'#173b3e25');batter(swingFrame(s),s.batterId,s.batterHand);}
   else{const left=s.batterHand!=='L',x=left?430:1220;c.fillStyle='#193d58e8';c.fillRect(x-150,715,300,115);c.fillStyle='#fff';c.font='bold 25px system-ui';c.textAlign='center';c.fillText(s.batterName+' · '+s.batterHand+' BAT',x,758);c.font='19px system-ui';c.fillText('Character artwork pending',x,795);c.textAlign='start';const t=s.swingAt===null?0:Math.max(0,s.elapsed-s.swingAt),a=t<.14?-1.1+t*9: .2+Math.min(t-.14,.4)*3;c.save();c.translate(left?680:1110,645);c.rotate(left?a:-a);c.strokeStyle='#d5a157';c.lineWidth=22;c.lineCap='round';c.beginPath();c.moveTo(0,0);c.lineTo(165,-100);c.stroke();c.restore();}
   const z=SCENE_GEOMETRY.zone;c.strokeStyle='#fff9e3bb';c.lineWidth=3;c.strokeRect(z.x-z.rx,z.y-z.ry,z.rx*2,z.ry*2);const x=z.x+s.aim.x*z.rx,y=z.y-s.aim.y*z.ry;

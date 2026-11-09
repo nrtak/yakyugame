@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {DEFENSIVE_PITCH_CAST,DEFENSIVE_PITCH_ASSETS,DEFENSIVE_PITCH_CAMERA,defensivePitcherPose,defensivePitcherFrame,defensivePitcherIdle,defensivePitcherPoint,defensiveRelease,nativePitcherPose} from './pitching-art.mjs';
-import {pitchingPosition} from './scene-render.mjs';
+import {pitchingPosition,characterPitcherMotionPose,characterPitcherPose} from './scene-render.mjs';
 import {pitchingActorPose,PITCHING_GEOMETRY} from './scene-render.mjs';
 import {catcherPose} from './opposing-art.mjs';
 import {playerById} from './rosters.mjs';
@@ -84,4 +84,20 @@ test('Ryan shows backward arm extension before the hand rises and accelerates fo
  assert.ok(points[0].x<points[1].x&&points[1].x<points[2].x&&points[2].x<release.x);
  assert.ok(points[0].y>points[1].y&&points[1].y>points[2].y,'Authored hand rises from backswing through loading, without a downward push');
  assert.ok(DEFENSIVE_PITCH_ASSETS[back.asset].includes('arm-back'));
+});
+
+test('Ryan completes his follow-through, then plants both feet in his own field-ready drawing',()=>{
+ const s={pitcherId:'navy-stars-ryan',pitcherHand:'R',phase:'flight',elapsed:.30};
+ assert.equal(characterPitcherMotionPose(s).asset,'pitcherRecovery');
+ const early={...s,phase:'result',elapsed:.1,clock:.1};
+ assert.notEqual(characterPitcherMotionPose(early).phase,'settled');
+ for(const state of [{...s,elapsed:.62},{...early,clock:.52},{...early,phase:'hit',clock:1},{...early,clock:5}]){
+  const p=characterPitcherMotionPose(state);assert.equal(p.asset,'fieldnavystarsryan');assert.equal(p.phase,'settled');assert.deepEqual(p.feetGrounded,{L:true,R:true});assert.equal(p.support,'L');assert.equal(p.throws,'R');assert.equal(p.gloveHand,'L');assert.equal(p.containsBall,false);assert.deepEqual(p.world,characterPitcherPose(s.pitcherId,4).world);
+ }
+ assert.equal(characterPitcherMotionPose({...s,phase:'ready'}).asset,'pitcherSet');
+});
+
+test('a short pitch result lets Ryan rear leg finish its carry before the grounded ending',()=>{
+ const s={pitcherId:'navy-stars-ryan',pitcherHand:'R',phase:'result',elapsed:.14,clock:0};
+ assert.equal(defensivePitcherFrame(s),4);assert.equal(defensivePitcherFrame({...s,clock:.17}),7);assert.equal(defensivePitcherFrame({...s,clock:.37}),8);
 });

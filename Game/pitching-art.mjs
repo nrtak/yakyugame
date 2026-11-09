@@ -2,22 +2,38 @@
 // Positive uniform scales only; hands and cameras are never reflected.
 import{pitcherFrame}from'./scene-engine.mjs';
 import{PITCH_WINDUP_SECONDS}from'./engine.mjs';
-import{EMMA_NATIVE_PITCH,EMMA_NATIVE_PITCH_RELEASE}from'./native-pitch-data.mjs';
-export const NATIVE_PITCH_ASSETS={defenseEmmaNative:EMMA_NATIVE_PITCH.rear.asset,emmaPitchNative:EMMA_NATIVE_PITCH.front.asset};
+import{EMMA_NATIVE_PITCH,EMMA_NATIVE_PITCH_RELEASE,RYAN_NATIVE_PITCH}from'./native-pitch-data.mjs';
+const NATIVE_PITCH_CAST={
+ 'coral-club-emma':{clip:EMMA_NATIVE_PITCH,throws:'L',gloveHand:'R',rear:'defenseEmmaNative',front:'emmaPitchNative'},
+ // User reported an appearance mismatch. Keep the motion for isolated review;
+ // the live game uses Ryan's own approved illustrated delivery until reskinned.
+ 'navy-stars-ryan':{clip:RYAN_NATIVE_PITCH,throws:'R',gloveHand:'L',rear:'defenseRyanNative',front:'ryanPitchNative',appearanceHeld:true}
+};
+export const NATIVE_PITCH_ASSETS=Object.fromEntries(Object.values(NATIVE_PITCH_CAST).filter(c=>!c.appearanceHeld).flatMap(c=>['rear','front'].map(view=>[c[view],c.clip[view].asset])));
 export const NATIVE_PITCH_RELEASE_FRAME=EMMA_NATIVE_PITCH_RELEASE;
+export const PITCH_FINISH_SECONDS=.62;
+// The pitch result stops the ball clock, but must not stop the delivery midway.
+export function pitchFollowThroughTime(s){
+ if(!['flight','hit','result'].includes(s.phase))return null;
+ if(!Number.isFinite(s.elapsed))return s.phase==='flight'?0:Infinity;
+ return Math.max(0,s.elapsed)+(['hit','result'].includes(s.phase)?Math.max(0,Number.isFinite(s.clock)?s.clock:0):0);
+}
 export function nativePitchFrame(s){
  if(s.phase==='windup')return Math.min(NATIVE_PITCH_RELEASE_FRAME-1,1+Math.max(0,s.clock)/PITCH_WINDUP_SECONDS*(NATIVE_PITCH_RELEASE_FRAME-1));
- if(s.phase==='flight')return Math.min(73,NATIVE_PITCH_RELEASE_FRAME+Math.max(0,s.elapsed)/.62*(73-NATIVE_PITCH_RELEASE_FRAME));
- return ['hit','result'].includes(s.phase)?73:1;
+ const t=pitchFollowThroughTime(s);
+ return t===null?1:Math.min(73,NATIVE_PITCH_RELEASE_FRAME+t/PITCH_FINISH_SECONDS*(73-NATIVE_PITCH_RELEASE_FRAME));
 }
-export function nativePitcherPose(s,view='rear'){
- if(s.pitcherId!=='coral-club-emma'||s.pitcherHand!=='L')return null;
- const clip=EMMA_NATIVE_PITCH[view],f=nativePitchFrame(s);
+function sampleNativePitch(s,view,includeHeld){
+ const cast=NATIVE_PITCH_CAST[s.pitcherId];if(!cast||cast.appearanceHeld&&!includeHeld||s.pitcherHand!==cast.throws||!cast.clip[view])return null;
+ const clip=cast.clip[view],f=nativePitchFrame(s);
  const row=clip.frames.reduce((best,row)=>Math.abs(row.frame-f)<Math.abs(best.frame-f)?row:best,clip.frames[0]);
- return {...row,asset:view==='rear'?'defenseEmmaNative':'emmaPitchNative',sourceWidth:clip.size[0],world:view==='rear'?[300,900]:[957,546],scale:view==='rear'?2.35:1.5,throws:'L',gloveHand:'R',containsBall:row.frame<NATIVE_PITCH_RELEASE_FRAME,ballVisible:false};
+ return {...row,asset:cast[view],sourceWidth:clip.size[0],world:view==='rear'?[300,900]:[957,546],scale:view==='rear'?(cast.throws==='R'?2.2:2.35):1.5,throws:cast.throws,gloveHand:cast.gloveHand,containsBall:row.frame<NATIVE_PITCH_RELEASE_FRAME,ballVisible:false};
 }
-export function nativePitchRelease(view='rear'){
- const p=nativePitcherPose({pitcherId:'coral-club-emma',pitcherHand:'L',phase:'flight',elapsed:0},view);
+export function nativePitcherPose(s,view='rear'){return sampleNativePitch(s,view,false);}
+export function nativePitchCandidatePose(s,view='rear'){return sampleNativePitch(s,view,true);}
+export function nativePitchRelease(view='rear',id='coral-club-emma'){
+ const cast=NATIVE_PITCH_CAST[id];if(!cast||cast.appearanceHeld)return null;
+ const p=nativePitcherPose({pitcherId:id,pitcherHand:cast.throws,phase:'flight',elapsed:0},view);
  return defensivePitcherPoint(p,p.hand);
 }
 export const DEFENSIVE_PITCH_ASSETS={defensePitchPark:'assets/scene-defense-pitching-park-v2.png',defenseRyanIdle:'assets/scene-reference-ryan-idle-v1.png'};
@@ -97,13 +113,13 @@ export function defensivePitcherFrame(s){
  if(s.pitcherId!=='navy-stars-ryan'||s.pitcherHand!=='R')return pitcherFrame(s);
  const t=s.clock*.72/PITCH_WINDUP_SECONDS;
  if(s.phase==='windup')return t<.16?0:t<.36?1:t<.51?9:t<.63?2:5;
- if(s.phase==='flight')return s.elapsed<.055?3:s.elapsed<.14?6:s.elapsed<.30?4:s.elapsed<.50?7:8;
- if(['hit','result'].includes(s.phase))return 8;
+ const elapsed=pitchFollowThroughTime(s);
+ if(elapsed!==null)return elapsed<.055?3:elapsed<.14?6:elapsed<.30?4:elapsed<.50?7:8;
  return 0;
 }
 export function defensivePitcherPoint(p,point){return{x:p.world[0]+(point[0]-p.anchor[0])*p.scale,y:p.world[1]+(point[1]-p.anchor[1])*p.scale};}
 export function defensiveRelease(hand){
- if(hand==='L')return nativePitchRelease('rear');
- const id=hand==='R'?'navy-stars-ryan':'coral-club-emma',p=defensivePitcherPose(id,hand,3);
- return p?defensivePitcherPoint(p,p.hand):null;
+ if(hand==='L')return nativePitchRelease('rear','coral-club-emma');
+ if(hand!=='R')return null;
+ const p=defensivePitcherPose('navy-stars-ryan','R',3);return defensivePitcherPoint(p,p.hand);
 }

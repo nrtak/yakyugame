@@ -1,6 +1,6 @@
 import {CPU_DIFFICULTIES} from './cpu-difficulty.mjs';
 import {TEAMS} from './rosters.mjs';
-import {emptyProgression,normalizeProgression,startSeries,prepareSeriesMatch,recordSeriesMatch,startCup,prepareCupMatch,recordCupMatch,grantProgressReward} from './tournament-progress.mjs';
+import {emptyProgression,normalizeProgression,startSeries,prepareSeriesMatch,recordSeriesMatch,startCup,prepareCupMatch,recordCupMatch,grantProgressReward,chooseStoryFocus,recordStorySpotlight} from './tournament-progress.mjs';
 import {restoreDerby} from './home-run-derby.mjs';
 import {PLAY_TIPS} from './game-help.mjs';
 export const PROFILE_STORAGE_KEY='yakyugame.profiles.v1';
@@ -69,6 +69,8 @@ export function createProfileStore(storage,makeId=()=>crypto.randomUUID()){
   startSeries(profileId,options){const p=state.players.find(p=>p.id===profileId);if(!p)throw Error('Choose a player profile to save a series.');p.progression=startSeries(p.progression,options);persist();return copy(p.progression);},
   prepareSeriesMatch(profileId,matchId){const p=state.players.find(p=>p.id===profileId);if(!p)throw Error('Choose a player profile to save a series.');const next=prepareSeriesMatch(p.progression,matchId);p.progression=next.progress;persist();return copy(next.fixture);},
   recordSeriesMatch(profileId,result){const p=state.players.find(p=>p.id===profileId);if(!p)return false;p.progression=recordSeriesMatch(p.progression,result);persist();return copy(p.progression);},
+  chooseStoryFocus(profileId,options){const p=state.players.find(p=>p.id===profileId);if(!p)throw Error('Choose a player profile first');p.progression=chooseStoryFocus(p.progression,options);persist();return copy(p.progression);},
+  recordStorySpotlight(profileId,result){const p=state.players.find(p=>p.id===profileId);if(!p)return false;p.progression=recordStorySpotlight(p.progression,result);persist();return copy(p.progression);},
   startCup(profileId,options){const p=state.players.find(p=>p.id===profileId);if(!p)throw Error('Choose a player profile to save a Cup.');p.progression=startCup(p.progression,options);persist();return copy(p.progression);},
   prepareCupMatch(profileId,matchId){const p=state.players.find(p=>p.id===profileId);if(!p)throw Error('Choose a player profile to save a Cup.');const next=prepareCupMatch(p.progression,matchId);p.progression=next.progress;persist();return copy(next.fixture);},
   recordCupMatch(profileId,result){const p=state.players.find(p=>p.id===profileId);if(!p)return false;p.progression=recordCupMatch(p.progression,result);persist();return copy(p.progression);},

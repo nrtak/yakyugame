@@ -9,6 +9,7 @@
     "batted-ball.mjs",
     "home-run-derby.mjs",
     "club-cup.mjs",
+    "rivalry-story.mjs",
     "tournament-progress.mjs",
     "game-help.mjs",
     "player-profiles.mjs",
@@ -21,6 +22,7 @@
     "rig-defense-settings.mjs",
     "flight-defense.mjs",
     "fielding-practice.mjs",
+    "story-spotlight.mjs",
     "match-engine.mjs",
     "scoreboard.mjs",
     "inning-controller.mjs",
@@ -51,6 +53,8 @@
     "scene-render.mjs",
     "competition-ui.mjs",
     "fielding-practice-ui.mjs",
+    "story-spotlight-ui.mjs",
+    "story-ui.mjs",
     "device-ui.mjs"
   ]
 }

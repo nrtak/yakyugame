@@ -1,4 +1,5 @@
 import {createCup,restoreCup,prepareCupMatch as prepareBracketMatch,recordCupMatch as recordBracketMatch} from './club-cup.mjs';
+import {validateStorySeries,storyGameSummary,storyGoals,STORY_FOCUSES} from './rivalry-story.mjs';
 const clone=v=>structuredClone(v);
 export const SECRET_STADIUM={id:'space-station',name:'Space Station Stadium',secret:true,criteria:null,artReady:false};
 const uniqueStrings=value=>[...new Set(Array.isArray(value)?value.filter(x=>typeof x==='string'&&x.length>0&&x.length<160):[])];
@@ -20,12 +21,13 @@ function validateSeries(s){
  for(const g of s.games){if(typeof g.matchId!=='string'||!g.matchId||ids.has(g.matchId)||!Array.isArray(g.score)||g.score.length!==2||!g.score.every(n=>Number.isSafeInteger(n)&&n>=0)||wins.some(n=>n>=2))throw Error('Invalid series result');ids.add(g.matchId);if(g.score[0]!==g.score[1])wins[g.score[0]>g.score[1]?0:1]++;}
  const champion=wins.findIndex(n=>n>=2);if((s.status==='complete')!==(champion>=0)||s.winnerId!==(champion<0?null:s.teamIds[champion]))throw Error('Invalid series winner');
  if(s.pendingMatchId!==null&&(typeof s.pendingMatchId!=='string'||!s.pendingMatchId||ids.has(s.pendingMatchId)||s.status!=='active'))throw Error('Invalid pending series game');
- return wins;
+ validateStorySeries(s);return wins;
 }
-export function startSeries(progress,{id,teamIds,userTeamId,innings=3}){
+export function startSeries(progress,{id,teamIds,userTeamId,innings=3,story=false}){
  const p=normalizeProgression(progress);if(p.activeSeries?.status==='active')throw Error('Finish the current series first');
  if(p.seriesHistory.some(s=>s.id===id)||p.activeSeries?.id===id)throw Error('Series ID already used');
- const s={id,kind:'rivalry-series',teamIds:clone(teamIds),userTeamId,innings,status:'active',winnerId:null,games:[],pendingMatchId:null};validateSeries(s);p.activeSeries=s;return p;
+ if(typeof story!=='boolean')throw Error('Invalid story choice');
+ const s={id,kind:'rivalry-series',teamIds:clone(teamIds),userTeamId,innings,status:'active',winnerId:null,games:[],pendingMatchId:null,...(story?{story:{version:1,recaps:[]}}:{})};validateSeries(s);p.activeSeries=s;return p;
 }
 export function prepareSeriesMatch(progress,matchId){
  const p=normalizeProgression(progress),s=p.activeSeries;if(!s||s.status!=='active')throw Error('No active series');
@@ -47,17 +49,22 @@ export function grantProgressReward(progress,{id,award,unlocks={}}){
  }
  p.rewardReceipts.push(id);if(award&&!p.awards.includes(award))p.awards.push(award);return p;
 }
-export function recordSeriesMatch(progress,{matchId,teamIds,score,over}){
+export function recordSeriesMatch(progress,{matchId,teamIds,score,over,storyMatch}){
  let p=normalizeProgression(progress),s=p.activeSeries;if(!s)throw Error('No series');
  // Result screens may be reopened; a recorded fixture cannot award twice.
  if(s.games.some(g=>g.matchId===matchId))return p;
  if(s.status!=='active'||s.pendingMatchId!==matchId||over!==true||!Array.isArray(teamIds)||teamIds.length!==2||new Set(teamIds).size!==2||!s.teamIds.every(t=>teamIds.includes(t))||!Array.isArray(score)||score.length!==2||!score.every(n=>Number.isSafeInteger(n)&&n>=0))throw Error('Completed scheduled series match required');
  const fixture=seriesFixture(s);if(teamIds[1]!==fixture.homeTeamId)throw Error('Series home team changed');
+ if(s.story){if(storyMatch?.innings!==3||JSON.stringify(storyMatch.teamIds)!==JSON.stringify(teamIds)||JSON.stringify(storyMatch.score)!==JSON.stringify(score))throw Error('Story requires the completed scheduled game');s.story.recaps.push(storyGameSummary(storyMatch,s.userTeamId,matchId,s.story.focus??'contact'));}
  s.games.push({matchId,score:s.teamIds.map(id=>score[teamIds.indexOf(id)])});s.pendingMatchId=null;
  const wins=s.teamIds.map((_,i)=>s.games.filter(g=>g.score[i]>g.score[1-i]).length),winner=wins.findIndex(n=>n>=2);
  if(winner>=0){s.status='complete';s.winnerId=s.teamIds[winner];p.seriesHistory.push(clone(s));if(s.winnerId===s.userTeamId)p=grantProgressReward(p,{id:'series:'+s.id,award:'rivalry-series-champion',unlocks:{uniforms:['club-classic']}});}
- validateSeries(p.activeSeries);return p;
+ validateSeries(p.activeSeries);
+ if(p.activeSeries.story){for(const g of storyGoals(p.activeSeries))if(g.complete)p=grantProgressReward(p,{id:'story:'+s.id+':'+g.id,award:g.id});const focus=s.story.recaps.at(-1).focus;if(focus.complete)p=grantProgressReward(p,{id:'story:'+s.id+':focus:'+matchId,award:'story-focus-'+focus.id});if(s.status==='complete'){p=grantProgressReward(p,{id:'story:'+s.id+':finished',award:'story-opening-day'});if(s.winnerId===s.userTeamId)p=grantProgressReward(p,{id:'story:'+s.id+':host',award:'story-showcase-host'});}}
+ return p;
 }
+export function chooseStoryFocus(progress,{seriesId,focusId}){const p=normalizeProgression(progress),s=p.activeSeries;if(!s?.story||s.id!==seriesId||s.status!=='active'||s.pendingMatchId||!Object.hasOwn(STORY_FOCUSES,focusId))throw Error('Choose a chapter goal before starting its game');s.story.focus=focusId;return p;}
+export function recordStorySpotlight(progress,{seriesId,attemptId,challengeId,success}){let p=normalizeProgression(progress),s=p.activeSeries;if(!s?.story||s.id!==seriesId||!s.games.length||typeof attemptId!=='string'||!attemptId||attemptId.length>160||typeof success!=='boolean'||challengeId!==(s.userTeamId==='coral-club'?'mia-corner':'clara-read'))throw Error('Invalid story spotlight result');s.story.spotlights??=[];if(s.story.spotlights.some(r=>r.attemptId===attemptId))return p;if(s.story.spotlights.length>=10000)throw Error('Spotlight history is full');s.story.spotlights.push({attemptId,challengeId,success});if(s.status==='complete')p.seriesHistory=p.seriesHistory.map(h=>h.id===s.id?clone(s):h);if(success)p=grantProgressReward(p,{id:'story:'+s.id+':spotlight:'+challengeId,award:challengeId==='mia-corner'?'story-spotlight-mia':'story-spotlight-clara'});return p;}
 export function venueUnlockStatus(id,progress,readyVenues,defaultVenues=['coral-club','navy-stars']){
  const p=normalizeProgression(progress),owned=defaultVenues.includes(id)||p.unlocks.stadiums.includes(id);
  return!owned?'locked':readyVenues.includes(id)?'playable':'unlocked-awaiting-art';
