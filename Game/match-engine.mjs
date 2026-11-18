@@ -117,7 +117,8 @@ function applyDefense(m,outcome,event,batter,stats){
   const retiredIds=new Set(retired.map(r=>r.id)),third=m.outs+retired.length===3?retired.at(-1):null,cancelRuns=third&&third.force;
   const movements=[{id:batter.id,base:1},...m.bases.map((id,i)=>id?{id,base:forces[['2B','3B','HOME'][i]]===id||c.runnerAdvances?.[id]===i+2?i+2:i+1}:null).filter(Boolean)].filter(r=>!retiredIds.has(r.id));
   for(const runner of movements)runner.base=paths.get(runner.id)?.at(-1).to??runner.base;
-  const destinations=movements.filter(r=>r.base<4),runs=cancelRuns?[]:movements.filter(r=>r.base===4&&(!third||(paths.get(r.id)?.at(-1).arriveAt??c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55))<third.at-1e-8)).map(r=>r.id);
+  const homeTime=r=>paths.get(r.id)?.at(-1).arriveAt??c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55);
+  const destinations=movements.filter(r=>r.base<4),runs=cancelRuns?[]:movements.filter(r=>r.base===4&&(!third||homeTime(r)<third.at-1e-8)).sort((a,b)=>homeTime(a)-homeTime(b)).map(r=>r.id);
   if(new Set(destinations.map(r=>r.base)).size!==destinations.length)throw Error('Runners cannot share a base');
   const same=(a,b)=>JSON.stringify(a.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))))===JSON.stringify(b.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))));
   if(!Array.isArray(outcome.destinations)||!Array.isArray(outcome.runs)||!same(outcome.destinations,destinations)||!same(outcome.runs,runs))throw Error('Invalid defensive runner destinations');

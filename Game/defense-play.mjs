@@ -136,6 +136,13 @@ export class GroundDefense {
   if(this.tagAttempt||this.throw?.tagRunnerId&&this.clock>=this.throw.controlAt&&this.runners.some(r=>r.id===this.throw.tagRunnerId&&this.clock<r.arriveAt))return null;
   const tagBases=this.runners.filter(r=>r.from>0&&r.to!==r.from&&r.arriveAt>this.clock&&!this.retired.some(x=>x.id===r.id)&&this.activeForces[BASE_ORDER[r.to]]!==r.id).map(r=>({base:BASE_ORDER[r.to],arriveAt:r.arriveAt,prediction:this.predictThrow(BASE_ORDER[r.to])})).filter(t=>t.prediction.holderId!==t.prediction.receiverId&&t.prediction.controlAt<t.arriveAt);
   const tag=tagBases.sort((a,b)=>b.arriveAt-a.arriveAt)[0];if(tag)return tag.base;
+  if(this.context.extraLegs){
+   const advancing=this.runners.filter(r=>r.to>r.from&&r.arriveAt>this.clock&&!this.retired.some(out=>out.id===r.id));
+   const lead=advancing.sort((a,b)=>b.to-a.to)[0];
+   if(!lead)return null;
+   const base=BASE_ORDER[lead.to],play=this.predictThrow(base);
+   return play.carry||play.holderId!==play.receiverId?base:null;
+  }
   const first=this.predictThrow('1B');return first.carry||first.holderId!==first.receiverId?'1B':null;
  }
  get finishAt(){
@@ -183,7 +190,7 @@ export class GroundDefense {
  get resolution(){
   if(!this.finished)return null;
   const retired=structuredClone(this.retired),outIds=new Set(retired.map(r=>r.id)),third=this.context.outs+retired.length>=3?retired.at(-1):null,cancelRuns=third&&third.force;
-  const survivors=this.runners.filter(r=>!outIds.has(r.id)),runs=cancelRuns?[]:survivors.filter(r=>r.to===4&&(!third||r.arriveAt<third.at-1e-8)).map(r=>r.id);
+  const survivors=this.runners.filter(r=>!outIds.has(r.id)),runs=cancelRuns?[]:survivors.filter(r=>r.to===4&&(!third||r.arriveAt<third.at-1e-8)).sort((a,b)=>a.arriveAt-b.arriveAt).map(r=>r.id);
   return {kind:'defensiveplay',context:structuredClone(this.context),retired,destinations:survivors.filter(r=>r.to<4).map(r=>({id:r.id,base:r.to})),runs,
    recordAs:liveHitCredit(this.context,retired),detail:this.throw?`${this.throws.map(t=>t.base).join(' → ')}. ${retired.length===3?'Triple play.':retired.length===2?(retired.some(r=>!r.force)?'Double play · Tag out.':'Double play.'):retired.length===1?(retired[0].force?'Force out.':'Tag out.'):this.throw.runnerId||this.throw.tagRunnerId?'Runner reaches safely.':'No force at that base; a tag would be required.'}`:this.manual&&!Number.isFinite(this.collectAt)?'Ball not secured. Runners reach safely.':'Runners reach safely while the ball is held.'};
  }

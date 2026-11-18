@@ -7,6 +7,17 @@ import {liveBallPoint} from './live-field-art.mjs';
 import {fieldProject} from './field-camera.mjs';
 import {liveRunnerPose} from './running-art.mjs';
 const batter=TEAMS[0].players[0];
+test('the leading runner gets the winning run when a deep hit brings two runners home',()=>{
+ const match=createMatch({innings:1});match.half=1;
+ const [hitter,first,second,third]=TEAMS[1].players;
+ match.bases=[first.id,second.id,third.id];
+ const p=new FlightDefense({teamId:TEAMS[0].id,batterId:hitter.id,bases:match.bases,contact:{quality:.8,launchAngle:28,direction:.35}});
+ p.step(30);
+ assert.deepEqual(p.resolution.runs,[third.id,second.id]);
+ const result=applyOutcome(match,p.resolution);
+ assert.equal(result.event.walkOff,true);assert.equal(result.event.runs,1);
+ assert.equal(result.match.stats[third.id].r,1);assert.equal(result.match.stats[second.id].r,0);
+});
 test('a playable gap drive can become a double, a triple, or a single with a tag out',()=>{
  for(const home of TEAMS)for(const choice of ['hold','tag','late-pickup']){
   const away=TEAMS.find(t=>t!==home),id=away.players[0].id;

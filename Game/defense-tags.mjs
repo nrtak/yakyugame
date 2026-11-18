@@ -7,7 +7,8 @@ export function liveHitCredit(context,retired){
   const reached=out?legs.at(-1).from:legs.at(-1).to;
   return ['','single','double','triple'][reached];
  }
- return retired.length?(retired.some(r=>r.id===context.batterId)?'groundout':'fielderschoice'):'single';
+ if(retired.some(r=>r.id===context.batterId))return 'groundout';
+ return retired.some(r=>r.force||!context.extraLegs?.[r.id])?'fielderschoice':'single';
 }
 export function tagContactValid({at,arriveAt,holderPoint,runnerPoint,startPoint,reach=TAG_REACH}){
  const point=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y),distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
