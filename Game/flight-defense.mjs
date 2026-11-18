@@ -7,6 +7,9 @@ export class FlightDefense extends GroundDefense {
   const radius=Math.hypot(plan.point.x,plan.point.y),k=Math.min(1,329.99/radius);
   super({...options,target:{x:plan.point.x*k,y:plan.point.y*k},ballTravel:plan.time});
   this.flight=flight;this.plan=plan;
+  const firstBounce=Math.min(flight.wallTime??Infinity,flight.landingTime);
+  const landing=battedBallAt(flight,firstBounce);
+  if(!flight.ground&&!flight.homeRun&&firstBounce>=this.runnerTime&&Math.hypot(landing.x,landing.y)>=160)this.runners[0].holdAtFirst=true;
   // A ball off the wall must drop and be gathered before the throw back in.
   if(flight.wallTime!==null&&!flight.homeRun&&!plan.airCatch){
    this.touchAt=Math.max(this.touchAt,flight.wallTime+.75);
@@ -23,6 +26,11 @@ export class FlightDefense extends GroundDefense {
   super.enableManualFielding(target);this.plan={...this.plan,fielderId:this.fielder.id};this.manual.deadline=Math.max(12,this.flight.stopTime+6);return this;
  }
  fieldBallAt(time){return this.flight?battedBallAt(this.flight,time):super.fieldBallAt(time);}
+ get fieldingTarget(){
+  if(this.manual&&!this.flight.ground&&this.clock>=Math.min(this.flight.landingTime,this.flight.wallTime??Infinity))
+   return this.fieldBallAt(Math.min(this.flight.stopTime,this.clock+.3));
+  return super.fieldingTarget;
+ }
  advanceOnDeepHit(){
   if(this.flight.homeRun||this.context.outs+this.retired.length>=3)return;
   const bounce=this.flight.ground?0:Math.min(this.flight.landingTime,this.flight.wallTime??Infinity);
@@ -36,7 +44,9 @@ export class FlightDefense extends GroundDefense {
   for(const runner of [...alive].sort((a,b)=>b.to-a.to)){
    if(runner.to===4||runner.id===this.context.batterId&&runner.to===3)continue;
    const held=runner.from===runner.to;
-   if(!held&&(this.clock<runner.arriveAt||this.clock-runner.arriveAt>.051))continue;
+   if(!held&&this.clock<runner.arriveAt)continue;
+   const waiting=this.clock-runner.arriveAt>.051;
+   if(!held&&waiting&&runner.from===0&&!runner.holdAtFirst)continue;
    if(alive.some(other=>other!==runner&&other.to===runner.to+1&&other.to!==4))continue;
    const duration=this.context.runnerTime*(75/(playerById(runner.id).speed||75))**.35*.92;
    // An outfielder's distance to the next bag and time to secure the ball
@@ -49,7 +59,7 @@ export class FlightDefense extends GroundDefense {
    // Commit aggressively to second on a gap hit. Third needs more daylight.
    const riskWindow=runner.to===1&&depth>=270?2.15:.65;
    if(!held&&returnTime<this.clock+duration-riskWindow)continue;
-   const startAt=held?this.clock:runner.arriveAt;
+   const startAt=held||waiting?this.clock:runner.arriveAt;
    const leg={from:runner.to,to:runner.to+1,startAt,arriveAt:startAt+duration};
    this.context.extraLegs??={};
    (this.context.extraLegs[runner.id]??=[]).push(leg);
@@ -80,7 +90,7 @@ export class FlightDefense extends GroundDefense {
  get state(){
   const s=super.state;if(!this.plan)return s;
   s.flightType=this.flight.ground?'Ground ball':this.flight.angle<25?'Line drive':'Fly ball';s.launchAngle=this.flight.angle;s.airCatch=Boolean(this.plan.airCatch)&&(!this.manual||Number.isFinite(this.touchAt));s.catchAt=this.plan.time;s.catchHeight=this.plan.point.z;
-  if(this.manual&&!Number.isFinite(this.touchAt)){s.ball=this.fieldBallAt(this.clock);s.phase=this.finished?'complete':this.fieldActionKind==='dive'?'airborne':'approach';s.possession='free';s.ballOwnerId=null;s.landingAt=this.flight.ground?this.flight.stopTime:Math.min(this.flight.landingTime,this.flight.wallTime??Infinity);if(!this.flight.ground&&this.clock>=s.landingAt)s.fieldingTarget=this.fieldBallAt(Math.min(this.flight.stopTime,this.clock+.3));s.catchWindow=s.ball.z<=16&&Math.hypot(s.ball.x-this.manual.point.x,s.ball.y-this.manual.point.y)<=12;return s;}
+  if(this.manual&&!Number.isFinite(this.touchAt)){s.ball=this.fieldBallAt(this.clock);s.phase=this.finished?'complete':this.fieldActionKind==='dive'?'airborne':'approach';s.possession='free';s.ballOwnerId=null;s.landingAt=this.flight.ground?this.flight.stopTime:Math.min(this.flight.landingTime,this.flight.wallTime??Infinity);s.fieldingTarget=this.fieldingTarget;s.catchWindow=s.ball.z<=16&&Math.hypot(s.ball.x-this.manual.point.x,s.ball.y-this.manual.point.y)<=12;return s;}
   if(this.clock<this.plan.time){s.ball=battedBallAt(this.flight,this.clock);s.phase=this.fieldActionKind==='dive'?'airborne':'approach';s.possession='free';s.ballOwnerId=null;}
   if(this.plan.airCatch){
    s.runners=s.runners.map(r=>r.id===this.context.batterId?{...r,out:this.clock>=this.plan.time}:this.context.outs<2?{...r,to:r.from,arriveAt:0,point:{...BASE_POINTS[['HOME','1B','2B','3B'][r.from]]}}:r);

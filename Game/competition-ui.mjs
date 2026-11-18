@@ -1,3 +1,4 @@
+import {newGameId} from './player-profiles.mjs';
 import {DerbySession,DERBY_HITTERS,createDerbySaveStore} from './derby-session.mjs';
 import {rewardCollection,collectionSelection,rewardNames} from './reward-collection.mjs';
 import {TEAMS} from './rosters.mjs';
@@ -9,7 +10,7 @@ export function createCompetitionUI({profiles,renderer,overlay,showMenu,home,upd
  function derbyMenu(){const save=store.read(profiles.current.id);$('derby-resume').hidden=!save;$('derby-resume').textContent=save?.state.over?'View Last Derby':'Resume Derby';$('derby-error').textContent=store.notice;showMenu('derby-menu');}
  async function start(resume=false){if(preparing)return;const save=resume?store.read(profiles.current.id):null,ids=[$('derby-hitter').value,$('derby-rival').value];if(!resume&&ids[0]===ids[1]){$('derby-error').textContent='Choose two different hitters.';return;}
   const token=++epoch;preparing=true;$('derby-start').disabled=$('derby-resume').disabled=true;$('derby-error').textContent='Getting hitters ready…';
-  try{const next=new DerbySession(save?{state:save.state}:{ids});await Promise.all([renderer.prepareVenue('navy-stars'),renderer.prepareBatter(next.player.id,next.player.bats)]);if(token!==epoch)return;session=next;profileId=profiles.current.id;runId=save?.runId??crypto.randomUUID();savedLength=-1;summaryShown=false;update();}catch(error){$('derby-error').textContent=error.message.startsWith('Unknown')?error.message:'Hitter images could not load. Tap Start Derby to retry.';}finally{if(token===epoch){preparing=false;$('derby-start').disabled=$('derby-resume').disabled=false;}}
+  try{const next=new DerbySession(save?{state:save.state}:{ids});await Promise.all([renderer.prepareVenue('navy-stars'),renderer.prepareBatter(next.player.id,next.player.bats)]);if(token!==epoch)return;session=next;profileId=profiles.current.id;runId=save?.runId??newGameId();savedLength=-1;summaryShown=false;update();}catch(error){$('derby-error').textContent=error.message.startsWith('Unknown')?error.message:'Hitter images could not load. Tap Start Derby to retry.';}finally{if(token===epoch){preparing=false;$('derby-start').disabled=$('derby-resume').disabled=false;}}
  }
  async function startTurn(){if(!session||preparing||session.phase!=='turn-ready')return;const current=session,token=++epoch;preparing=true;$('next').disabled=true;
   try{await renderer.prepareBatter(current.player.id,current.player.bats);if(token===epoch&&current===session&&!current.paused){current.startTurn();$('message').textContent='Drag to aim · Swing as the ball arrives';}}catch{$('message').textContent='Hitter images could not load. Tap Start Turn to retry.';}finally{if(token===epoch){preparing=false;update();}}

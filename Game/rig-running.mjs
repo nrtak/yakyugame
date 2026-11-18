@@ -1,4 +1,4 @@
-import {runThroughMotion} from './defense-play.mjs';
+import {runThroughMotion,runsThroughBase} from './defense-play.mjs';
 const clamp=v=>Math.max(0,Math.min(1,v));
 const mix=(a,b,q)=>a.map((v,i)=>v+(b[i]-v)*q);
 const phase=v=>(v%1+1)%1;
@@ -13,7 +13,7 @@ export function sampleRigRunner(clip,s,r){
  const leg=clip.legs[r.from+':'+r.to];if(!leg)return null;
  const after=time-r.arriveAt;
  if(after>=-1e-8){
-  const through=r.from===0&&r.to===1||r.to===4;
+  const through=runsThroughBase(r);
   const q=through?runThroughMotion(r,time).progress:clamp(after/clip.arrivalDuration);
   return rigFramePose(clip,leg,through?'overrun':'arrival',Math.min(8,Math.floor(q*8+1e-8)),leg.contact);
  }

@@ -7,6 +7,33 @@ import {liveBallPoint} from './live-field-art.mjs';
 import {fieldProject} from './field-camera.mjs';
 import {liveRunnerPose} from './running-art.mjs';
 const batter=TEAMS[0].players[0];
+test('a runner can wait at first for a deep fly to drop, then take an extra base',()=>{
+ for(const home of TEAMS){
+  const match=createMatch({homeTeamId:home.id}),away=TEAMS.find(t=>t!==home);
+  const p=new FlightDefense({teamId:home.id,batterId:away.players[0].id,contact:{quality:.75,launchAngle:48,direction:.7}}).enableManualFielding();
+  p.step(p.runnerTime+.15);
+  const atFirst=p.state.runners[0];
+  assert.deepEqual(atFirst.point,{x:90/Math.sqrt(2),y:90/Math.sqrt(2)});
+  assert.equal(liveRunnerPose(p.state,atFirst)?.action,'arrival');
+  p.step(p.flight.landingTime-p.clock+.02);
+  const rounding=p.state.runners[0];
+  assert.equal(rounding.from,1);
+  assert.ok(rounding.legStartAt>=p.flight.landingTime-1e-8);
+  assert.ok(Math.hypot(rounding.point.x-atFirst.point.x,rounding.point.y-atFirst.point.y)<1);
+  p.step(30);
+  const {event}=applyOutcome(match,p.resolution);
+  assert.ok(['double','triple'].includes(event.kind));
+ }
+});
+test('a slide with the stick released follows the displayed target after a bounce',()=>{
+ const p=new FlightDefense({teamId:'navy-stars',batterId:batter.id,contact:{quality:.75,launchAngle:28,direction:.35}}).enableManualFielding();
+ p.step(p.flight.landingTime+.3);
+ const {point}=p.manual,target=p.state.fieldingTarget;
+ assert.ok(Math.hypot(target.x-p.manual.target.x,target.y-p.manual.target.y)>1);
+ assert.ok(p.performFieldAction());
+ const dx=target.x-point.x,dy=target.y-point.y,d=Math.hypot(dx,dy);
+ assert.deepEqual(p.manual.action.direction,{x:dx/d,y:dy/d});
+});
 test('the leading runner gets the winning run when a deep hit brings two runners home',()=>{
  const match=createMatch({innings:1});match.half=1;
  const [hitter,first,second,third]=TEAMS[1].players;

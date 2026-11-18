@@ -29,7 +29,16 @@ export function profileName(value){
  return name;
 }
 // Profiles are device-local preferences. Guest changes never modify a saved player.
-export function createProfileStore(storage,makeId=()=>crypto.randomUUID()){
+export function newGameId(source=globalThis.crypto){
+ if(source.randomUUID)return source.randomUUID();
+ // The local Wi-Fi preview has random bytes even when randomUUID is unavailable.
+ const bytes=source.getRandomValues(new Uint8Array(16));
+ bytes[6]=(bytes[6]&15)|64;
+ bytes[8]=(bytes[8]&63)|128;
+ const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+ return [hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+}
+export function createProfileStore(storage,makeId=newGameId){
  let state={version:1,activeId:null,players:[]},guest=copy(DEFAULT_PREFERENCES),guestTips=[],notice='',canSave=true;
  try{
   const raw=storage.getItem(PROFILE_STORAGE_KEY);

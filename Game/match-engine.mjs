@@ -88,7 +88,7 @@ function applyDefense(m,outcome,event,batter,stats){
    let base=origin+Number(moving),arrival=moving?(id===batter.id?c.runnerTime:c.runnerTimes?.[id]??Math.max(.4,c.runnerTime-.55)):0;
    const duration=c.runnerTime*(75/playerById(id).speed)**.35*.92;
    for(const leg of legs){
-    if(leg.from!==base||leg.to!==base+1||leg.to>(id===batter.id?3:4)||!Number.isFinite(leg.startAt)||!Number.isFinite(leg.arriveAt)||leg.startAt<arrival-1e-8||arrival&&Math.abs(leg.startAt-arrival)>1e-7||Math.abs(leg.arriveAt-leg.startAt-duration)>1e-7)throw Error('Invalid extra-base path');
+    if(leg.from!==base||leg.to!==base+1||leg.to>(id===batter.id?3:4)||!Number.isFinite(leg.startAt)||!Number.isFinite(leg.arriveAt)||leg.startAt<arrival-1e-8||Math.abs(leg.arriveAt-leg.startAt-duration)>1e-7)throw Error('Invalid extra-base path');
     base=leg.to;arrival=leg.arriveAt;
    }
    paths.set(id,legs);

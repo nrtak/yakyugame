@@ -6,6 +6,7 @@ const D=90/Math.sqrt(2);
 export const BASE_POINTS={'HOME':{x:0,y:0},'1B':{x:D,y:D},'2B':{x:0,y:2*D},'3B':{x:-D,y:D}};
 export const BASE_ORDER=['HOME','1B','2B','3B','HOME'];
 export const RUN_THROUGH_SECONDS=1.4;
+export function runsThroughBase(r){return r.to===4||r.from===0&&r.to===1&&!r.holdAtFirst;}
 // Keep the contact clock unchanged, then decelerate through first/home.
 // This is visual run-through only: it never awards another base or a force.
 export function runThroughMotion(r,time){
@@ -60,7 +61,7 @@ export class GroundDefense {
   const start=r.legStartAt??0,lead=start?0:this.context.runnerStarts[r.id]??0;
   const point=mix(BASE_POINTS[BASE_ORDER[r.from]],BASE_POINTS[BASE_ORDER[r.to]],r.to===r.from?0:lead+(1-lead)*clamp((at-start)/(r.arriveAt-start)));
   // Running through first does not award another base or change force timing.
-  if(!retired&&(r.from===0&&r.to===1||r.to===4)&&at>r.arriveAt){const a=BASE_POINTS[BASE_ORDER[r.from]],b=BASE_POINTS[BASE_ORDER[r.to]],beyond=runThroughMotion(r,at).distance;point.x+=(b.x-a.x)/90*beyond;point.y+=(b.y-a.y)/90*beyond;}
+  if(!retired&&runsThroughBase(r)&&at>r.arriveAt){const a=BASE_POINTS[BASE_ORDER[r.from]],b=BASE_POINTS[BASE_ORDER[r.to]],beyond=runThroughMotion(r,at).distance;point.x+=(b.x-a.x)/90*beyond;point.y+=(b.y-a.y)/90*beyond;}
   return point;
  }
  enableManualFielding(target=this.target){
@@ -75,9 +76,10 @@ export class GroundDefense {
  }
  fieldBallAt(time){const q=clamp(time/this.ballTravel);return{...mix(BASE_POINTS.HOME,this.target,q),z:Math.abs(Math.sin(q*Math.PI*4))*.6*(1-q)};}
  get fieldActionKind(){return 'slide';}
+ get fieldingTarget(){return {...(this.manual?.target??this.target)};}
  performFieldAction(){
   const m=this.manual;if(!m||this.clock>=this.touchAt||this.finished||m.action&&this.clock<m.action.recoverUntil)return false;
-  let x=m.input.x,y=m.input.y;if(Math.hypot(x,y)<.1){x=m.target.x-m.point.x;y=m.target.y-m.point.y;}const length=Math.hypot(x,y);if(length<.01)return false;
+  let x=m.input.x,y=m.input.y;if(Math.hypot(x,y)<.1){const target=this.fieldingTarget;x=target.x-m.point.x;y=target.y-m.point.y;}const length=Math.hypot(x,y);if(length<.01)return false;
   m.action={kind:this.fieldActionKind,startedAt:this.clock,recoverUntil:this.clock+1.05,direction:{x:x/length,y:y/length}};return true;
  }
  manualTouch(time,ball){this.touchAt=time;this.collectAt=time+.18;this.target={x:ball.x,y:ball.y};this.manual.input={x:0,y:0};this.manual.moving=false;this.manual.stoppedAt=time;}
@@ -148,7 +150,7 @@ export class GroundDefense {
  get finishAt(){
   if(this.manual&&!Number.isFinite(this.collectAt))return this.manual.deadline;
   if(this.context.outs+this.retired.length>=3){const last=this.retired.at(-1);return last.at+(last.force?.35:.45);}
-  const dead=new Set(this.retired.map(r=>r.id)),runnersAt=Math.max(0,...this.runners.filter(r=>!dead.has(r.id)).map(r=>r.arriveAt+(r.from===0||r.to===4?runThroughMotion(r,r.arriveAt).duration:0)));
+  const dead=new Set(this.retired.map(r=>r.id)),runnersAt=Math.max(0,...this.runners.filter(r=>!dead.has(r.id)).map(r=>r.arriveAt+(runsThroughBase(r)?runThroughMotion(r,r.arriveAt).duration:0)));
   const tagHold=Math.max(this.lastTag?this.lastTag.at+.45:0,this.lastTagMiss?Math.max(this.lastTagMiss.at,this.lastTagMiss.readyAt)+.4:0);
   return this.throw?Math.max(runnersAt,this.throw.catchAt+.4,this.throw.controlAt+.25,tagHold):Math.max(runnersAt,this.collectAt+(this.manual?3:.4),tagHold);
  }

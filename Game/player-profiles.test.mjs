@@ -1,7 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {createProfileStore,PROFILE_STORAGE_KEY,profileName,completedMatchRecord} from './player-profiles.mjs';
+import {createProfileStore,PROFILE_STORAGE_KEY,profileName,completedMatchRecord,newGameId} from './player-profiles.mjs';
 import {createMatch,applyOutcome} from './match-engine.mjs';
 const memory=()=>{const data=new Map();return{getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};};
+test('Wi-Fi preview creates distinct profile and game IDs with the browser random bytes API',()=>{
+ const source={getRandomValues:bytes=>crypto.getRandomValues(bytes)};
+ const ids=Array.from({length:50},()=>newGameId(source));
+ assert.equal(new Set(ids).size,ids.length);
+ for(const id of ids)assert.match(id,/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+});
 test('two people retain separate settings and the selected profile survives relaunch',()=>{
  const disk=memory();let n=0;const store=createProfileStore(disk,()=>String(++n));
  const first=store.create('  Alex  ');store.update({teamId:'navy-stars',sensitivity:'0.7',assisted:false});
