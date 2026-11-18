@@ -20,5 +20,5 @@ test('catcher ownership changes to the authored ball in the mitt without a dupli
 });
 test('CPU swings and catcher identity survive a third-out review until continue',()=>{
  const g=new DeviceGame({teamId:'navy-stars'});g.start();g.releasePitch();g.phase='flight';g.cpu={kind:'miss'};g.elapsed=g.pitch.duration-.05;
- assert.ok(swingFrame(g.sceneState())>0);g.match.outs=2;g.match.strikes=2;g.finishPitch({kind:'miss'});const old=g.sceneState();assert.equal(old.catcherId,'navy-stars-lily');assert.equal(old.pitchOutcome.kind,'miss');assert.equal(g.match.half,1);assert.equal(g.sceneState().catcherId,'navy-stars-lily');assert.equal(g.sceneState().batterId,'coral-club-emma');
+ assert.equal(swingFrame(g.sceneState()),0,'Impact drawing must wait for the CPU contact instant');g.elapsed=g.pitch.duration;assert.equal(swingFrame(g.sceneState()),2);g.match.outs=2;g.match.strikes=2;g.finishPitch({kind:'miss'});const old=g.sceneState();assert.equal(old.catcherId,'navy-stars-lily');assert.equal(old.pitchOutcome.kind,'miss');assert.equal(g.match.half,1);assert.equal(g.sceneState().catcherId,'navy-stars-lily');assert.equal(g.sceneState().batterId,'coral-club-emma');
 });

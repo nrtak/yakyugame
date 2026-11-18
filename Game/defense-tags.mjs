@@ -1,5 +1,14 @@
 // Simplified game-space reach, not a claim about an authored glove animation.
 export const TAG_REACH=5.5,TAG_BASE_TOUCH=.5;
+export function liveHitCredit(context,retired){
+ const legs=context.extraLegs?.[context.batterId];
+ if(legs?.length){
+  const out=retired.find(r=>r.id===context.batterId);
+  const reached=out?legs.at(-1).from:legs.at(-1).to;
+  return ['','single','double','triple'][reached];
+ }
+ return retired.length?(retired.some(r=>r.id===context.batterId)?'groundout':'fielderschoice'):'single';
+}
 export function tagContactValid({at,arriveAt,holderPoint,runnerPoint,startPoint,reach=TAG_REACH}){
  const point=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y),distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
  return Number.isFinite(at)&&at>0&&Number.isFinite(arriveAt)&&at<arriveAt-1e-8&&Number.isFinite(reach)&&reach>0&&[holderPoint,runnerPoint,startPoint].every(point)&&distance(runnerPoint,startPoint)>TAG_BASE_TOUCH&&distance(holderPoint,runnerPoint)<=reach+1e-7;

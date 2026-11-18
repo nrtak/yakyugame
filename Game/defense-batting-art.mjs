@@ -8,14 +8,14 @@ const phases=['ready','contact','follow'];
 export const DEFENSE_BATTING_CAST={
  'coral-club-emma':{hand:'R',prefix:'defenseBatemma',camera:'LOW-REAR',world:[emmaFoot.x,emmaFoot.y],scale:emmaReference.scale,
   ready:{file:'assets/scene-reference-emma-bat-ready-v2.png',sourceWidth:1024,rect:[0,0,1024,1536],anchor:[430,1472]}},
- 'navy-stars-ryan':{hand:'R',prefix:'defenseBatryan',world:[1230,560],scale:.30,
+ 'navy-stars-ryan':{hand:'R',prefix:'defenseBatryan',world:[1230,560],scale:.354,
   ready:{file:'assets/scene-defense-ryan-bat-ready-third-v1.png',sourceWidth:1227,rect:[0,0,1227,1282],anchor:[500,1200]}}
 };
 for(const cast of Object.values(DEFENSE_BATTING_CAST))for(const phase of phases)if(cast[phase])DEFENSE_BATTING_ASSETS[cast.prefix+phase]=cast[phase].file;
 export function defenseBatterPose(id,hand,frame){
  const cast=DEFENSE_BATTING_CAST[id],phase=frame===3?'follow':frame===1||frame===2?'contact':'ready',p=cast?.[phase];
  if(!p||cast.hand!==hand)return null;
- return{...p,asset:cast.prefix+phase,hand,phase,camera:cast.camera??'MOUND+THIRD',gaze:'toward-pitcher',world:cast.world,scale:cast.scale};
+ return{...p,asset:cast.prefix+phase,hand,phase,camera:cast.camera??'MOUND+THIRD',gaze:'toward-pitcher',world:cast.world,scale:p.scale??cast.scale};
 }
 export function defenseBatterKeys(id){const cast=DEFENSE_BATTING_CAST[id];return cast?phases.filter(p=>cast[p]).map(p=>cast.prefix+p):[];}
 // These authored drawings represent impact and the later finish. A contact

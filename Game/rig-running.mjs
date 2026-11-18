@@ -18,7 +18,7 @@ export function sampleRigRunner(clip,s,r){
   return rigFramePose(clip,leg,through?'overrun':'arrival',Math.min(8,Math.floor(q*8+1e-8)),leg.contact);
  }
  // Align the next contact stride with the bag clock, not an unrelated wall clock.
- const period=clip.period*(r.arriveAt/4.45),index=Math.floor(phase(after/period)*16)%16;
+ const period=clip.period*((r.arriveAt-(r.legStartAt??0))/4.45),index=Math.floor(phase(after/period)*16)%16;
  const blend=clamp(1+after/.16),anchor=mix(leg.root,leg.contact,blend*blend*(3-2*blend));
  return rigFramePose(clip,leg,'run',index,anchor);
 }

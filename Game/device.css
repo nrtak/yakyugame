@@ -242,6 +242,17 @@ body{display:flex;align-items:center;justify-content:center;width:100%;height:10
 #steals button[data-hold]{background:#57d9ff;border-color:#e8fbff}
 #steals button[data-hold][aria-pressed=true]{background:#8ef28c;border-color:#e9ffdf}
 
+/* Throw choices are packed together around the bags and kept clear of other
+   touch controls. Coordinates already describe the top-left hit area. */
+#field-targets .field-target{transform:none;min-width:52px;min-height:52px}
+#game[data-play-mode=field] #phase-label{max-width:48%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#12384ff0;border:1px solid #b6f8ff;color:#b6f8ff}
+#game[data-play-mode=field] #control-hint{left:24%;right:24%;bottom:max(2%,calc(var(--safe-bottom) + 3px));padding:7px 9px;background:#102f43f2;border:1px solid #fff2ad;color:#fff2ad}
+#game[data-play-mode=field] #message{bottom:calc(17% + var(--safe-bottom));left:20%;right:20%}
+#field-action small{white-space:nowrap}
+#game[data-play-mode=field][data-defense-step=tag] #control-hint{left:3%;right:40%}
+#defense-rail{height:max(14%,52px)}
+@media(max-width:600px){#game[data-play-mode=field] #control-hint{left:25%;right:25%;font-size:10px;padding:5px}#game[data-play-mode=field] #message{left:25%;right:25%;font-size:10px}}
+
 /* Story chapters sit in the safe, scrollable menu layer, never over live controls. */
 #story-hub{padding:22px 26px;background:#fffdf5}
 #story-hub .panel-header{align-items:flex-start}

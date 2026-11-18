@@ -8,6 +8,26 @@ import {PRACTICE_CAPTAINS} from './batting-practice.mjs';
 const until=(s,predicate,limit=120)=>{for(let i=0;i<limit*240;i++){if(predicate())return;s.step(1/240);}throw Error('Scene failed to progress');};
 test('ten-pitch scene completes, including takes and replay reset',()=>{const s=new BattingScene();s.start();until(s,()=>s.phase==='summary');assert.equal(s.results.length,10);assert.equal(s.summary.goodTakes,3);assert.equal(s.outs,2);s.reset();assert.equal(s.phase,'intro');assert.equal(s.results.length,0);});
 test('timed swings make contact once per pitch with visible contact frame at scoring',()=>{const s=new BattingScene();s.start();for(let n=0;n<10;n++){until(s,()=>s.phase==='flight');s.setAim(s.pitch.x,s.pitch.y);until(s,()=>s.elapsed>=s.pitch.duration-SWING_LEAD-.001);assert.equal(s.swing(),true);assert.equal(s.swing(),false);until(s,()=>s.phase==='hit');assert.equal(swingFrame(s),2);assert.equal(s.results.length,n+1);assert.equal(s.result.kind,'hit');if(n<9)until(s,()=>s.phase==='ready');}until(s,()=>s.phase==='summary');assert.equal(s.summary.fairHits,10);});
+
+test('accepted impact drawings wait for judged contact across both lineups and authored cameras',()=>{
+ const s={phase:'flight',elapsed:1,swingAt:1,clock:0};
+ for(const dt of [0,.045,.09,SWING_LEAD-.001]){
+  const frame=swingFrame({...s,elapsed:1+dt});assert.equal(frame,0);
+  for(const p of allPlayers()){
+   assert.equal(characterBatterPose(p.id,p.bats,frame).asset,characterBatterPose(p.id,p.bats,0).asset);
+   assert.equal(opposingBatterPose(p.id,p.bats,frame).phase,'ready');
+  }
+ }
+ assert.equal(swingFrame({...s,elapsed:1+SWING_LEAD}),2);
+ assert.equal(swingFrame({...s,elapsed:1.24}),3);
+ assert.equal(swingFrame({...s,elapsed:1.64}),0);
+ for(const phase of ['hit','result']){
+  assert.equal(swingFrame({...s,phase,elapsed:1+SWING_LEAD,clock:.05}),2);
+  assert.equal(swingFrame({...s,phase,elapsed:1+SWING_LEAD,clock:.12}),3);
+ }
+ assert.equal(swingFrame({...s,swingAt:null}),0);
+ assert.equal(swingFrame({...s,swingAt:undefined}),0);
+});
 test('pause freezes a pitch and cannot accept a swing',()=>{const s=new BattingScene();s.start();until(s,()=>s.phase==='flight');s.paused=true;const at=s.elapsed;s.step(10);assert.equal(s.elapsed,at);assert.equal(s.swing(),false);s.paused=false;s.step(.03);assert.ok(s.elapsed>at);});
 test('fouls cannot add a third strike and counts reset after third strike or fourth ball',()=>{const s=new BattingScene();s.strikes=2;s.finish({kind:'foul'});assert.equal(s.strikes,2);assert.equal(s.outs,0);s.finish({kind:'miss'});assert.equal(s.strikes,0);assert.equal(s.outs,1);s.balls=3;s.strikes=1;s.finish({kind:'ball'});assert.equal(s.balls,0);assert.equal(s.strikes,0);});
 test('pitch paths start at the authored right-hand release and reach the pitch location continuously',()=>{const s=new BattingScene(),z=SCENE_GEOMETRY.zone;for(const p of s.pitches){const a=pitchPosition(p,0),b=pitchPosition(p,p.duration);assert.equal(a.x,SCENE_GEOMETRY.release.x);assert.equal(a.y,SCENE_GEOMETRY.release.y);assert.ok(Math.abs(b.x-z.x-p.x*z.rx)<1e-6);assert.ok(Math.abs(b.y-z.y+p.y*z.ry)<1e-6);let prior=a;for(let t=.01;t<=p.duration;t+=.01){const next=pitchPosition(p,t);assert.ok(Math.hypot(next.x-prior.x,next.y-prior.y)<10);prior=next;}}});

@@ -1,10 +1,13 @@
+import {EMMA_PAINTED_ASSETS,emmaPaintedPose as emmaDeliveryPose,emmaPaintedFrame as emmaDeliveryFrame,emmaPaintedRelease as emmaDeliveryRelease} from './emma-painted-delivery.mjs';
 // Separate defensive camera drawings. The old batting camera has its own art.
 // Positive uniform scales only; hands and cameras are never reflected.
 import{pitcherFrame}from'./scene-engine.mjs';
 import{PITCH_WINDUP_SECONDS}from'./engine.mjs';
 import{EMMA_NATIVE_PITCH,EMMA_NATIVE_PITCH_RELEASE,RYAN_NATIVE_PITCH}from'./native-pitch-data.mjs';
 const NATIVE_PITCH_CAST={
- 'coral-club-emma':{clip:EMMA_NATIVE_PITCH,throws:'L',gloveHand:'R',rear:'defenseEmmaNative',front:'emmaPitchNative'},
+ // Close-up gameplay uses the accepted paintings. These simplified native
+ // surfaces remain available only to historical, isolated motion reviews.
+ 'coral-club-emma':{clip:EMMA_NATIVE_PITCH,throws:'L',gloveHand:'R',rear:'defenseEmmaNative',front:'emmaPitchNative',appearanceHeld:true},
  // User reported an appearance mismatch. Keep the motion for isolated review;
  // the live game uses Ryan's own approved illustrated delivery until reskinned.
  'navy-stars-ryan':{clip:RYAN_NATIVE_PITCH,throws:'R',gloveHand:'L',rear:'defenseRyanNative',front:'ryanPitchNative',appearanceHeld:true}
@@ -54,7 +57,7 @@ ryanIdle.world[0]-=80+DEFENSIVE_PITCH_CAMERA.rightwardShift;
 const ryanPivot=defensivePitcherPoint(ryanIdle,[772,1491]),ryanScale=.68;
 ryanIdle.anchor=[772,1491];ryanIdle.world=[ryanPivot.x,ryanPivot.y];
 const ryanLanding=[ryanPivot.x+(990-440)*ryanScale,ryanPivot.y+(1060-1163)*ryanScale];
-const phases=['set','lift','stride','release','recovery','acceleration','deceleration','legSwing','finish','armBack'];
+const phases=['set','lift','stride','release','recovery','acceleration','deceleration','legSwing','finish','armBack','settled'];
 for(const phase of phases.slice(0,5))DEFENSIVE_PITCH_ASSETS['defenseRyan'+phase]='assets/scene-defense-ryan-'+phase+'-v2.png';
 DEFENSIVE_PITCH_ASSETS.defenseRyanrelease='assets/scene-defense-ryan-release-v3.png';
 DEFENSIVE_PITCH_ASSETS.defenseRyanacceleration='assets/scene-defense-ryan-acceleration-v1.png';
@@ -82,25 +85,36 @@ const ryan=[
 // Source construction owns each support sole. The pivot is now the right shoe
 // in the approved rear idle; the left landing remains fixed after the stride.
 for(const p of ryan)p.world=p.support==='R'?[ryanPivot.x,ryanPivot.y]:[...ryanLanding];
-// Historical drawing registrations retained for old review/coverage tools.
-// Live Emma pitching uses nativePitcherPose; these drawings are not donors.
+// Own corrected whole paintings: left bare throw / right glove throughout.
+// No native body pieces, reflections or image deformation are involved.
 const emma=[
  {size:[1412,1498],rect:[0,0,1412,1498],anchor:[665,1103],world:[330,900],scale:1.01,support:'L',hand:[803,487],otherFoot:[850,1096]},
  {size:[1405,1505],rect:[0,0,1405,1505],anchor:[710,1218],world:[330,900],scale:.8,support:'L',hand:[806,380]},
  {size:[1190,1322],rect:[235,35,855,1225],anchor:[435,1225],world:[330,900],support:'L',hand:[306,110],landing:[930,1082]},
- {size:[1189,1323],rect:[225,25,785,1215],anchor:[908,1205],world:[646.8,808.48],support:'R',hand:[848,35]},
+ // This landmark follows the actual fingertips. The former [848,35] was in
+ // transparent space above the hand. The overhead drawing itself still needs
+ // a separately accepted forward-extension correction.
+ {size:[1189,1323],rect:[225,25,785,1215],anchor:[908,1205],world:[646.8,808.48],support:'R',hand:[840,65]},
  {size:[1189,1323],rect:[225,45,805,1210],anchor:[763,1220],world:[646.8,808.48],support:'R',hand:[990,711]}
 ];
 for(const p of emma)p.world[0]-=DEFENSIVE_PITCH_CAMERA.rightwardShift;
+// After the rear leg carries through, return to her own two-foot stance at
+// the planted RIGHT landing sole. Uniform perspective scale preserves the
+// complete standing drawing; it is not a new generated motion/body.
+emma[10]={...emma[0],anchor:[850,1096],world:[...emma[3].world],scale:.86,support:'R',otherFoot:[665,1103],feetGrounded:{L:true,R:true},containsBall:false,ballVisible:false};
+DEFENSIVE_PITCH_ASSETS.defenseEmmasettled=DEFENSIVE_PITCH_ASSETS.defenseEmmaset;
+Object.assign(DEFENSIVE_PITCH_ASSETS,Object.fromEntries(Object.entries(EMMA_PAINTED_ASSETS).filter(([key])=>key.startsWith('defenseEmma'))));
 export const DEFENSIVE_PITCH_CAST={
  'navy-stars-ryan':{throws:'R',gloveHand:'L',prefix:'defenseRyan',poses:ryan,scale:ryanScale,idle:{...ryanIdle,support:'R',containsBall:true,ballVisible:false,phase:'idle',hand:[763,864],otherFoot:[237,1483]}},
- 'coral-club-emma':{throws:'L',gloveHand:'R',prefix:'defenseEmma',poses:emma,scale:.64}
+ 'coral-club-emma':{throws:'L',gloveHand:'R',prefix:'defenseEmma',poses:Array.from({length:14},(_,i)=>emmaDeliveryPose(i,'rear')),scale:1.85}
 };
 export function defensivePitcherIdle(id,hand){
+ if(id==='coral-club-emma'&&hand==='L')return emmaDeliveryPose(0,'rear');
  const cast=DEFENSIVE_PITCH_CAST[id];if(!cast?.idle||cast.throws!==hand)return null;
  return{...cast.idle,throws:cast.throws,gloveHand:cast.gloveHand};
 }
 export function defensivePitcherPose(id,hand,frame){
+ if(id==='coral-club-emma'&&hand==='L')return emmaDeliveryPose(frame,'rear');
  const cast=DEFENSIVE_PITCH_CAST[id],p=cast?.poses[frame];
  if(!p||cast.throws!==hand)return null;
  return{...p,asset:cast.prefix+phases[frame],sourceWidth:p.size[0],scale:p.scale??cast.scale,
@@ -110,16 +124,21 @@ export function defensivePitcherPose(id,hand,frame){
 // Corrective drawings are specific to Ryan's low rear camera. Other pitchers
 // and the separate batting camera retain their own phase selection.
 export function defensivePitcherFrame(s){
+ if(s.pitcherId==='coral-club-emma'&&s.pitcherHand==='L')return emmaDeliveryFrame(s,'rear');
  if(s.pitcherId!=='navy-stars-ryan'||s.pitcherHand!=='R')return pitcherFrame(s);
  const t=s.clock*.72/PITCH_WINDUP_SECONDS;
  if(s.phase==='windup')return t<.16?0:t<.36?1:t<.51?9:t<.63?2:5;
  const elapsed=pitchFollowThroughTime(s);
- if(elapsed!==null)return elapsed<.055?3:elapsed<.14?6:elapsed<.30?4:elapsed<.50?7:8;
+ // The old inserted deceleration painting already had a lower hand than the
+ // following recovery painting, so 3 -> 6 -> 4 made the arm reverse upward.
+ // Keep that drawing for historical review, but omit it from live playback.
+ if(elapsed!==null)return elapsed<.055?3:elapsed<.30?4:elapsed<.50?7:8;
  return 0;
 }
 export function defensivePitcherPoint(p,point){return{x:p.world[0]+(point[0]-p.anchor[0])*p.scale,y:p.world[1]+(point[1]-p.anchor[1])*p.scale};}
 export function defensiveRelease(hand){
- if(hand==='L')return nativePitchRelease('rear','coral-club-emma');
- if(hand!=='R')return null;
- const p=defensivePitcherPose('navy-stars-ryan','R',3);return defensivePitcherPoint(p,p.hand);
+ if(hand==='L')return emmaDeliveryRelease('rear');
+ const id=hand==='L'?'coral-club-emma':hand==='R'?'navy-stars-ryan':null;
+ if(!id)return null;
+ const p=defensivePitcherPose(id,hand,3);return defensivePitcherPoint(p,p.hand);
 }

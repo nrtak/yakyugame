@@ -11,7 +11,10 @@ export function createBattedBall(contact,batter){
  const wallTime=ground?Infinity:(-Math.log(1-f.fence.distance*.14/vx)/.14);
  f.wallTime=Number.isFinite(wallTime)&&wallTime>0&&wallTime<landingTime?wallTime:null;
  f.homeRun=f.wallTime!==null&&3+vz*f.wallTime-.5*g*f.wallTime**2>f.fence.height;
- f.stopTime=ground?rollTime:Math.min(landingTime,f.wallTime??Infinity)+1.5;
+ // A low drive can skip past an outfielder after landing. Carry its remaining
+ // horizontal speed into the roll, decelerating on grass until it stops.
+ f.bounceSpeed=vx*Math.exp(-.14*landingTime)*(angle<25?.68:.43);
+ f.stopTime=ground?rollTime:f.wallTime!==null?f.wallTime+1.5:landingTime+f.bounceSpeed/19;
  return f;
 }
 export function battedBallAt(f,time){
@@ -19,7 +22,11 @@ export function battedBallAt(f,time){
  if(f.ground){const q=clamp(t/f.rollTime,0,1);distance=f.rollRange*(2*q-q*q);z=Math.abs(Math.sin(q*Math.PI*5))*.65*(1-q);}
  else{const air=Math.min(t,f.landingTime,f.homeRun?Infinity:f.wallTime??Infinity);distance=f.vx/.14*(1-Math.exp(-.14*air));z=Math.max(0,3+f.vz*air-.5*32.174*air**2);
   if(!f.homeRun&&f.wallTime!==null&&t>=f.wallTime){distance=f.fence.distance-Math.min(12,(t-f.wallTime)*8);z=Math.max(0,z-(t-f.wallTime)*12);}
-  else if(t>f.landingTime){distance+=Math.min(35,(t-f.landingTime)*20);z=Math.abs(Math.sin((t-f.landingTime)*7))*.4*Math.max(0,1-(t-f.landingTime)/1.5);}
+  else if(t>f.landingTime){
+   const elapsed=t-f.landingTime,roll=Math.min(elapsed,f.bounceSpeed/19);
+   distance+=f.bounceSpeed*roll-9.5*roll*roll;
+   z=Math.abs(Math.sin(elapsed*7))*.4*Math.max(0,1-elapsed/1.5);
+  }
  }
  distance=Math.min(f.homeRun?450:f.fence.distance,distance);const a=f.direction*Math.PI/4;
  return{x:Math.sin(a)*distance,y:Math.cos(a)*distance,z};
@@ -27,7 +34,12 @@ export function battedBallAt(f,time){
 export function planInterception(f,players){
  if(f.homeRun)return {homeRun:true,time:f.wallTime,point:battedBallAt(f,f.wallTime)};
  for(let t=.2;t<f.stopTime+20;t+=.02){const point=battedBallAt(f,t);if(point.z>8)continue;
-  const eligible=players.map(p=>({p,d:Math.hypot(DEFENSE_SPOTS[p.position].x-point.x,DEFENSE_SPOTS[p.position].y-point.y)})).filter(x=>x.d<=Math.max(0,t-.16)*24);
+  const eligible=players.map(p=>{
+   const start=DEFENSE_SPOTS[p.position],d=Math.hypot(start.x-point.x,start.y-point.y);
+   const retreat=['LF','CF','RF'].includes(p.position)&&point.y>start.y+10;
+   const reach=Math.max(0,t-(retreat?.4:.16))*(retreat?21:24);
+   return {p,d,reach};
+  }).filter(x=>x.d<=x.reach);
   if(eligible.length){eligible.sort((a,b)=>a.d-b.d);return{fielderId:eligible[0].p.id,time:t,point,airCatch:!f.ground&&t<f.landingTime&&(f.wallTime===null||t<f.wallTime)};}
  }
  throw Error('Unable to field batted ball');

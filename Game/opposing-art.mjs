@@ -1,6 +1,8 @@
 import {fieldDisplayScale} from './field-scaling.mjs';
+import {PLATE_CREW_ASSETS,plateCrewKeys} from './plate-crew.mjs';
 // Authored mound/first-base views. No reflected home-camera substitutes.
 export const OPPOSING_ASSETS={},OPPOSING_CAST={};
+Object.assign(OPPOSING_ASSETS,PLATE_CREW_ASSETS);
 for(const team of ['coral-club','navy-stars'])for(const name of team==='coral-club'?['emma','mia','ken','lily','dylan','noah','emi','sora','theo']:['ryan','mia','ken','lily','dylan','noah','emma','sora','theo']){
  const id=team+'-'+name,key='opposing'+id.replaceAll('-','');
  OPPOSING_ASSETS[key+'Ready']='assets/scene-'+id+'-batting-mound-ready.png';
@@ -74,5 +76,5 @@ export function catcherPose(id,action='receive'){
  const transfer=action==='transfer',w=transfer?cast.transferWidth:cast.width,h=transfer?cast.transferHeight:cast.height;
  return{asset:cast[action],sourceWidth:w,rect:[0,0,w,h],anchor:[w*.5,h*.975],world:[800,485],scale:(transfer?300:260)/h,glove:transfer?(id==='navy-stars-lily'?[710,520]:[610,590]):[780,555],throws:'R',gloveHand:'L',containsBall:transfer,action};
 }
-export function opposingArtKeys(batterId,catcherId){const b=OPPOSING_CAST[batterId],c=CATCHER_CAST[catcherId];return [...(b?[b.ready,b.contact,b.follow].filter(Boolean):[]),...(c?[c.receive,c.transfer]:[])];}
+export function opposingArtKeys(batterId,catcherId){const b=OPPOSING_CAST[batterId],c=CATCHER_CAST[catcherId];return [...(b?[b.ready,b.contact,b.follow].filter(Boolean):[]),...(c?[c.receive,c.transfer]:[]),...plateCrewKeys(catcherId)];}
 export function catcherAction(s){return s.phase==='result'&&['ball','strike','miss'].includes(s.pitchOutcome?.kind)&&s.clock>=.2?'transfer':'receive';}

@@ -1,4 +1,5 @@
 import {DeviceGame,GAME_FORMATS,gameFormatLabel} from './device-game.mjs';
+import {newMatchSeed} from './match-engine.mjs';
 import {PITCH_TYPES,projectPitch} from './pitch-types.mjs';
 import {createSceneRenderer,pitchPosition,STADIUM_ART,SCENE_ASSETS,characterBatterPose} from './scene-render.mjs';
 import {TEAMS,playerById,venueName} from './rosters.mjs';
@@ -82,7 +83,7 @@ function draw(){
  if(storySpotlight.activity){storySpotlight.draw();return;}
  if(competitions.activity){renderer.draw(competitions.activity.sceneState());return;}
  if(practice){renderer.draw(practice.sceneState());return;}
- if(['field','steal'].includes(game.phase)||(game.phase==='review'&&lastField)){const s=game.defense??lastField;renderer.drawDefense({...s,controlRail:true,reducedMotion:reduceEffects||motionPreference.matches,showCall:false,showReviewNotice:false,throwTargets:!game.userBatting,runnerNames:Object.fromEntries(s.runners.map(r=>[r.id,playerById(r.id).name]))});defenseControls.position(renderer.metrics.defenseCamera);return;}
+ if(['field','steal'].includes(game.phase)||(game.phase==='review'&&lastField)){const s=game.defense??lastField;renderer.drawDefense({...s,controlRail:true,reducedMotion:reduceEffects||motionPreference.matches,showCall:false,showReviewNotice:false,throwTargets:!game.viewingBatting,runnerNames:Object.fromEntries(s.runners.map(r=>[r.id,playerById(r.id).name]))});defenseControls.position(renderer.metrics.defenseCamera);return;}
  if(!game.viewingBatting&&game.phase!=='menu'){pitching();return;}
  renderer.draw(game.sceneState());
 }
@@ -109,7 +110,7 @@ function update(){
  if(practice){updatePractice();return;}
  const tip=tipForGame(game);if(tip&&!pacing.active&&!preparing&&!game.paused&&!activeTip&&!profiles.current.tutorials.includes(tip))openTip(tip);
  const m=game.match,field=['field','steal'].includes(game.phase),fieldView=field||game.phase==='review'&&!!lastField,s=game.defense;
- const signature=JSON.stringify([pacing.active,menuPage,preparing,loadError,activeTip,pitchPickerOpen,game.phase,game.stealIntent,game.steal?.runnerId,game.paused,game.userBatting,game.swingAt!==null,game.pitchKind,game.batter.id,game.pitcher.id,m.score,m.inning,m.half,m.balls,m.strikes,m.outs,m.over,s?.phase,s?.possession,s?.call,s?.ballOwnerId,s?.throwToId,s?.target,s?.canThrow,s?.canFieldAction,s?.canTag,s?.tagPending,s?.recommendation,s?.playOuts,s?.flightType,s?.throwOptions?.map(o=>[o.base,o.force,o.out,o.tagRequired]),game.event?.title,game.event?.detail]);
+ const signature=JSON.stringify([pacing.active,menuPage,preparing,loadError,activeTip,pitchPickerOpen,game.phase,game.stealIntent,game.steal?.runnerId,game.paused,game.userBatting,game.swingAt!==null,game.pitchKind,game.batter.id,game.pitcher.id,m.score,m.inning,m.half,m.balls,m.strikes,m.outs,m.over,s?.phase,s?.possession,s?.call,s?.ballOwnerId,s?.throwToId,s?.target,s?.canThrow,s?.activeFielderId,s?.moveEnabled,s?.canFieldAction,s?.canTag,s?.tagPending,s?.recommendation,s?.playOuts,s?.flightType,s?.throwOptions?.map(o=>[o.base,o.force,o.out,o.tagRequired,o.available]),game.event?.title,game.event?.detail]);
  if(signature===uiSignature)return;uiSignature=signature;
  if(!preparing&&matchRunId&&!['menu','final'].includes(game.phase))matchSaves.save(matchProfileId,{runId:matchRunId,series:matchSeries,cup:matchCup,game});
  $('resume-saved').disabled=!loaded||preparing;
@@ -129,7 +130,11 @@ function update(){
  $('next').disabled=preparing;$('start').disabled=!loaded||preparing;$('start').textContent=preparing?'Getting players ready…':loadError?'Try Again':$('play-mode').value==='cup'?(profiles.current.progression.activeCup&&!profiles.current.progression.activeCup.over?'Resume Club Cup':'Start Club Cup'):$('play-mode').value==='series'?(profiles.current.progression.activeSeries?.status==='active'?'Resume Series':'Start Rivalry Series'):'Start '+GAME_FORMATS[Number($('innings').value)];$('next').hidden=game.phase!=='review'||automaticPitchDelay(game)!==null&&!loadError;$('next').textContent=loadError?'Retry next pitch':m.over?'See Results →':game.event?.halfEnded?'Change Sides →':'Next Pitch →';
  let message=game.batter.name+' · '+game.batter.bats+' BAT vs '+game.pitcher.name+' · '+game.pitcher.throws+'HP';
  if(game.phase==='steal'){message=game.steal.name+' is stealing '+(game.steal.to===2?'second':'third')+' · Watch the catcher’s throw';}else if(game.phase==='field'){const owner=s?.players.find(p=>p.id===s.ballOwnerId),receiver=s?.players.find(p=>p.id===s.throwToId);message=s?.moveEnabled?'Move '+s.players.find(p=>p.id===s.activeFielderId)?.name+' to the ball target':s?.tagPending?'Ready to tag · Waiting for the runner':s?.canTag&&!game.userBatting?'Tap Tag Runner · A tag is needed for this out':s?.canThrow?(owner?.name??'Fielder')+' has the ball · '+(game.userBatting?'Defense choosing a throw':'Tap a base'+(s.playOuts?' for another out':'')):s?.phase==='airborne'?s.flightType+' · Tracking the ball':s?.phase==='caught'?owner.name+' makes the catch · Runners hold':s?.phase==='homerun'?'Over the fence · Home run':s?.phase==='approach'?'Ball in play · '+s.players.find(p=>p.id===s.fielderId)?.name+' is fielding':s?.phase==='carry'?'Touching the bag':s?.phase==='throw'?'Throw to '+s.target+' · '+receiver?.name+' receiving':(owner?.name??'Fielder')+' securing the ball';}
- else if(game.phase==='review')message=game.event.title+' · '+(automaticPitchDelay(game)!==null?'The pitcher is getting ready…':game.event.detail);
+ else if(game.phase==='review'){
+  const advancing=automaticPitchDelay(game)!==null;
+  const detail=m.over?'Final score':game.event.halfEnded?'Changing sides':advancing?'The pitcher is getting ready…':game.event.detail;
+  message=game.event.title+' · '+detail;
+ }
  else if(game.phase==='flight'&&!game.userBatting)message=PITCH_TYPES[game.pitch.kind].name+' · '+PITCH_TYPES[game.pitch.kind].hint;
  $('message').textContent=loadError||message;$('matchup-error').textContent=loadError;$('matchup-error').hidden=!loadError;
  const feedback=defenseFeedback(field?s:game.phase==='review'?lastField:null);$('possession').hidden=!field;$('possession').textContent=feedback.possession;$('play-call').hidden=!feedback.call;$('play-call').textContent=feedback.call;$('play-call').dataset.tone=feedback.tone;
@@ -138,14 +143,16 @@ function update(){
  if(activeTip)overlay('tutorial');else if(game.paused)overlay('paused');else if(game.phase==='menu')overlay(menuPage);else if(game.phase==='final'){if(shown!=='final'){results();effects.play('end',{key:'final',title:m.winner===null?'A FRIENDLY DRAW':teams[m.winner].short+' WINS!',subtitle:teams[0].short+' '+m.score[0]+' · '+teams[1].short+' '+m.score[1]});}overlay('results');}else overlay(null);shown=game.paused?'paused':game.phase;
 }
 async function prepareAndAdvance(start=false,{resumed=false}={}){
- if(preparing||game.paused)return;const current=game,token=++loadEpoch;preparing=true;loadError='';update();
+ if(preparing||game.paused)return;
+ if(!start&&game.phase==='review'&&game.match.over){game.next();loadError='';update();return;}
+ const current=game,token=++loadEpoch;preparing=true;loadError='';update();
  try{await Promise.all([renderer.prepareBatter(game.batter.id,game.batter.bats),renderer.prepareVenue(game.homeTeamId),renderer.prepareDefense(game.teams[1-game.match.half].id,{runnerIds:[game.batter.id,...game.match.bases.filter(Boolean)]}),renderer.prepareOpposing(game.batter.id,game.teams[1-game.match.half].players.find(p=>p.position=== 'C').id)]);if(token!==loadEpoch||current!==game||game.paused)return;const changeSides=game.event?.halfEnded;lastField=null;effects.clear();start?game.start():game.next();
   if(start)pacing.begin({resumed});else if(changeSides&&!game.match.over)pacing.begin({changeSides:true});
   last=performance.now();}
  catch{loadError='Character images could not load. Tap again to retry.';}
  finally{if(token===loadEpoch){preparing=false;uiSignature='';update();}}
 }
-async function begin(){if(!loaded||preparing)return;const saved=matchSaves.read(profiles.current.id);if(($('play-mode').value==='series'&&saved?.series&&saved.runId===profiles.current.progression.activeSeries?.pendingMatchId)||($('play-mode').value==='cup'&&saved?.cup&&saved.runId===profiles.current.progression.activeCup?.pendingMatchId))return resumeSavedGame();lastPresentedEvent=null;effects.clear();matchProfileId=profiles.current.id;matchRunId=crypto.randomUUID();matchSeries=$('play-mode').value==='series';matchCup=$('play-mode').value==='cup';let options={teamId:$('team').value,homeTeamId:$('home-team').value,innings:Number($('innings').value),seed:211,manualFielding:true,assisted:$('assistance').value==='on',difficulty:$('difficulty').value};
+async function begin(){if(!loaded||preparing)return;const saved=matchSaves.read(profiles.current.id);if(($('play-mode').value==='series'&&saved?.series&&saved.runId===profiles.current.progression.activeSeries?.pendingMatchId)||($('play-mode').value==='cup'&&saved?.cup&&saved.runId===profiles.current.progression.activeCup?.pendingMatchId))return resumeSavedGame();lastPresentedEvent=null;effects.clear();matchProfileId=profiles.current.id;matchRunId=crypto.randomUUID();matchSeries=$('play-mode').value==='series';matchCup=$('play-mode').value==='cup';let options={teamId:$('team').value,homeTeamId:$('home-team').value,innings:Number($('innings').value),seed:newMatchSeed(),manualFielding:true,assisted:$('assistance').value==='on',difficulty:$('difficulty').value};
  if(matchSeries){try{if(profiles.current.progression.activeSeries?.status!=='active')profiles.startSeries(matchProfileId,{id:crypto.randomUUID(),teamIds:TEAMS.map(t=>t.id),userTeamId:options.teamId,innings:options.innings});const fixture=profiles.prepareSeriesMatch(matchProfileId,matchRunId);matchRunId=fixture.matchId;options={...options,teamId:fixture.teamId,homeTeamId:fixture.homeTeamId,innings:fixture.innings};}catch(error){loadError=error.message;uiSignature='';update();return;}}
  if(matchCup){try{if(!profiles.current.progression.activeCup||profiles.current.progression.activeCup.over)profiles.startCup(matchProfileId,{id:crypto.randomUUID(),teamIds:TEAMS.map(t=>t.id),userTeamId:options.teamId,innings:options.innings,seed:211});const fixture=profiles.prepareCupMatch(matchProfileId,matchRunId);matchRunId=fixture.matchId;options={...options,teamId:fixture.teamId,homeTeamId:fixture.homeTeamId,innings:fixture.innings};}catch(error){loadError=error.message;uiSignature='';update();return;}}
  matchStory=matchSeries&&!!profiles.current.progression.activeSeries?.story;if(matchStory)options.seed=storyMatchSeed(profiles.current.progression.activeSeries);game=new DeviceGame(options);await prepareAndAdvance(true);}

@@ -12,5 +12,5 @@ test('tutorial acknowledgments survive relaunch per player and guest stays tempo
 test('possession and safe/out cues follow real play state, not a predicted throw',()=>{
  const play=new GroundDefense();assert.equal(defenseFeedback(play.state).call,'');while(!play.canThrow)play.step(.01);assert.match(defenseFeedback(play.state).possession,/Ball in glove/);play.throwTo('1B');assert.match(defenseFeedback(play.state).possession,/Transferring/);assert.equal(defenseFeedback(play.state).call,'');while(play.clock<play.throw.catchAt)play.step(.01);assert.match(defenseFeedback(play.state).possession,/Ball in glove/);while(!play.finished)play.step(.01);assert.equal(defenseFeedback(play.state).call,'OUT');
  const late=new GroundDefense();while(late.clock<3.8)late.step(.01);late.throwTo('1B');while(!late.finished)late.step(.01);assert.equal(defenseFeedback(late.state).call,'SAFE');
- assert.equal(defenseFeedback({call:'no-force',possession:'free'}).call,'NO FORCE · TAG REQUIRED');assert.equal(defenseFeedback(null).call,'');
+ assert.equal(defenseFeedback({call:'no-force',possession:'free'}).call,'NO FORCE');assert.equal(defenseFeedback(null).call,'');
 });

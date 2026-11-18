@@ -1,5 +1,5 @@
 import {TEAMS} from './rosters.mjs';
-import {firstTagContact} from './defense-tags.mjs';
+import {firstTagContact,liveHitCredit} from './defense-tags.mjs';
 
 // Feet in a fixed home-to-center coordinate system. Cameras never change sides.
 const D=90/Math.sqrt(2);
@@ -9,7 +9,7 @@ export const RUN_THROUGH_SECONDS=1.4;
 // Keep the contact clock unchanged, then decelerate through first/home.
 // This is visual run-through only: it never awards another base or a force.
 export function runThroughMotion(r,time){
- const speed=90/r.arriveAt,duration=Math.min(RUN_THROUGH_SECONDS,32/speed),t=Math.max(0,Math.min(duration,time-r.arriveAt));
+ const speed=90/(r.arriveAt-(r.legStartAt??0)),duration=Math.min(RUN_THROUGH_SECONDS,32/speed),t=Math.max(0,Math.min(duration,time-r.arriveAt));
  return{duration,distance:speed*(t-t*t/(2*duration)),progress:t/duration,speed:speed*(1-t/duration)};
 }
 export const DEFENSE_SPOTS={P:{x:0,y:60.5},C:{x:0,y:-6},'1B':{x:64,y:85},'2B':{x:33,y:130},'3B':{x:-64,y:85},SS:{x:-33,y:130},LF:{x:-125,y:220},CF:{x:0,y:270},RF:{x:125,y:220}};
@@ -57,7 +57,8 @@ export class GroundDefense {
  }
  runnerPoint(r,time=this.clock){
   const retired=this.retired.find(x=>x.id===r.id),at=retired?Math.min(time,retired.at):time;
-  const point=mix(BASE_POINTS[BASE_ORDER[r.from]],BASE_POINTS[BASE_ORDER[r.to]],r.to===r.from?0:(this.context.runnerStarts[r.id]??0)+(1-(this.context.runnerStarts[r.id]??0))*clamp(at/r.arriveAt));
+  const start=r.legStartAt??0,lead=start?0:this.context.runnerStarts[r.id]??0;
+  const point=mix(BASE_POINTS[BASE_ORDER[r.from]],BASE_POINTS[BASE_ORDER[r.to]],r.to===r.from?0:lead+(1-lead)*clamp((at-start)/(r.arriveAt-start)));
   // Running through first does not award another base or change force timing.
   if(!retired&&(r.from===0&&r.to===1||r.to===4)&&at>r.arriveAt){const a=BASE_POINTS[BASE_ORDER[r.from]],b=BASE_POINTS[BASE_ORDER[r.to]],beyond=runThroughMotion(r,at).distance;point.x+=(b.x-a.x)/90*beyond;point.y+=(b.y-a.y)/90*beyond;}
   return point;
@@ -73,10 +74,11 @@ export class GroundDefense {
   const length=Math.max(1,Math.hypot(x,y));this.manual.input={x:x/length,y:y/length};return true;
  }
  fieldBallAt(time){const q=clamp(time/this.ballTravel);return{...mix(BASE_POINTS.HOME,this.target,q),z:Math.abs(Math.sin(q*Math.PI*4))*.6*(1-q)};}
+ get fieldActionKind(){return 'slide';}
  performFieldAction(){
   const m=this.manual;if(!m||this.clock>=this.touchAt||this.finished||m.action&&this.clock<m.action.recoverUntil)return false;
   let x=m.input.x,y=m.input.y;if(Math.hypot(x,y)<.1){x=m.target.x-m.point.x;y=m.target.y-m.point.y;}const length=Math.hypot(x,y);if(length<.01)return false;
-  m.action={kind:this.flight&&!this.flight.ground&&this.clock<this.flight.landingTime?'dive':'slide',startedAt:this.clock,recoverUntil:this.clock+1.05,direction:{x:x/length,y:y/length}};return true;
+  m.action={kind:this.fieldActionKind,startedAt:this.clock,recoverUntil:this.clock+1.05,direction:{x:x/length,y:y/length}};return true;
  }
  manualTouch(time,ball){this.touchAt=time;this.collectAt=time+.18;this.target={x:ball.x,y:ball.y};this.manual.input={x:0,y:0};this.manual.moving=false;this.manual.stoppedAt=time;}
  advanceManual(dt){
@@ -102,7 +104,7 @@ export class GroundDefense {
   const dead=new Set(this.retired.map(r=>r.id)),forces={};
   for(const [base,id]of Object.entries(this.forces)){
    const runner=this.runners.find(r=>r.id===id),behind=runner.from===0?[]:[this.context.batterId,...this.context.bases.slice(0,runner.from-1).filter(Boolean)];
-   if(!dead.has(id)&&behind.every(id=>!dead.has(id)))forces[base]=id;
+   if(!runner.legStartAt&&!dead.has(id)&&behind.every(id=>!dead.has(id)))forces[base]=id;
   }return forces;
  }
  get canThrow(){return !this.finished&&this.context.outs+this.retired.length<3&&(!this.manual?.action||this.clock>=this.manual.action.recoverUntil)&&(this.manual&&!this.throw||this.runners.some(r=>r.arriveAt>this.clock&&!this.retired.some(x=>x.id===r.id)))&&this.clock>=(this.throw?this.throw.controlAt+.08:this.collectAt)&&(!this.lastTag||this.clock>=this.lastTag.at+.18);}
@@ -119,7 +121,7 @@ export class GroundDefense {
   for(let i=0;i<6;i++){end=this.playerPoint(receiver,releaseAt+flight);flight=Math.max(.18,distance(start,end)/speed);}
   const catchAt=releaseAt+flight,controlAt=Math.max(catchAt,receiver.arriveAt),runner=this.runners.find(r=>r.id===this.activeForces[base]);
   const carryEnd=receivingPoint(base),carryTime=distance(start,carryEnd)/24+.08;
-  if(distance(start,BASE_POINTS[base])<16&&at+carryTime<controlAt){const atBag=at+carryTime,out=Boolean(runner&&atBag<runner.arriveAt-1e-8);return {base,carry:true,holderId:holder.id,receiverId:holder.id,releaseAt:at,catchAt:atBag,controlAt:atBag,flight:carryTime,start,end:carryEnd,out,runnerId:runner?.id??null,callAt:runner?(out?atBag:runner.arriveAt):atBag,settled:false};}
+  if(distance(start,BASE_POINTS[base])<16&&(holder.id!==receiver.id||distance(start,carryEnd)>.01)&&at+carryTime<controlAt){const atBag=at+carryTime,out=Boolean(runner&&atBag<runner.arriveAt-1e-8);return {base,carry:true,holderId:holder.id,receiverId:holder.id,releaseAt:at,catchAt:atBag,controlAt:atBag,flight:carryTime,start,end:carryEnd,out,runnerId:runner?.id??null,callAt:runner?(out?atBag:runner.arriveAt):atBag,settled:false};}
   const out=Boolean(runner&&controlAt<runner.arriveAt-1e-8);
   return {base,holderId:holder.id,receiverId:receiver.id,startedAt:at,setupSeconds,releaseAt,catchAt,controlAt,flight,start,end,out,runnerId:runner?.id??null,callAt:runner?(out?controlAt:runner.arriveAt):catchAt,settled:false};
  }
@@ -133,7 +135,8 @@ export class GroundDefense {
   const force=options.sort((a,b)=>baseIndex(b.base)-baseIndex(a.base))[0]?.base;if(force)return force;
   if(this.tagAttempt||this.throw?.tagRunnerId&&this.clock>=this.throw.controlAt&&this.runners.some(r=>r.id===this.throw.tagRunnerId&&this.clock<r.arriveAt))return null;
   const tagBases=this.runners.filter(r=>r.from>0&&r.to!==r.from&&r.arriveAt>this.clock&&!this.retired.some(x=>x.id===r.id)&&this.activeForces[BASE_ORDER[r.to]]!==r.id).map(r=>({base:BASE_ORDER[r.to],arriveAt:r.arriveAt,prediction:this.predictThrow(BASE_ORDER[r.to])})).filter(t=>t.prediction.holderId!==t.prediction.receiverId&&t.prediction.controlAt<t.arriveAt);
-  return tagBases.sort((a,b)=>b.arriveAt-a.arriveAt)[0]?.base??'1B';
+  const tag=tagBases.sort((a,b)=>b.arriveAt-a.arriveAt)[0];if(tag)return tag.base;
+  const first=this.predictThrow('1B');return first.carry||first.holderId!==first.receiverId?'1B':null;
  }
  get finishAt(){
   if(this.manual&&!Number.isFinite(this.collectAt))return this.manual.deadline;
@@ -167,8 +170,8 @@ export class GroundDefense {
   }
   const tagVisible=this.lastTag&&t<this.lastTag.at+.45;if(this.tagAttempt){phase='tag-ready';}if(tagVisible){phase='tag';possession='fielding-glove';owner=this.lastTag.holderId;ball={...this.lastTag.runnerPoint,z:3};}
   if(this.finished)phase='complete';
-  const options=this.canThrow?Object.keys(BASE_POINTS).filter(b=>b!=='HOME'||this.coverage.HOME).map(base=>{const p=this.predictThrow(base),r=this.runners.find(r=>r.id===this.activeForces[base]),tagRequired=!r&&this.runners.some(r=>r.from>0&&r.to!==r.from&&BASE_ORDER[r.to]===base&&r.arriveAt>t&&!this.retired.some(x=>x.id===r.id));return{base,receiverId:p.receiverId,force:Boolean(r),tagRequired,margin:r?r.arriveAt-p.controlAt:null,out:p.out};}):[];
-  return {teamId:this.context.teamId,clock:t,phase,ball,possession,ballOwnerId:owner,fielderId:this.fielder.id,canFieldAction:!!this.manual&&t<this.touchAt&&!this.finished&&(!this.manual.action||t>=this.manual.action.recoverUntil),fieldActionLabel:this.flight&&!this.flight.ground&&t<this.flight.landingTime?'DIVE':'SLIDE',manualFielding:!!this.manual,activeFielderId:this.manual?.id??null,moveEnabled:!!this.manual&&!this.finished&&t<this.touchAt,fieldingTarget:this.manual?{...this.manual.target}:null,canThrow:this.canThrow,canTag:this.tagOptions.length>0,tagOptions:this.tagOptions,tagPending:Boolean(this.tagAttempt),tagPoint:tagVisible?{...this.lastTag.runnerPoint}:null,callKind:this.lastTag?'tag':null,recommendation:this.recommendation,throwOptions:options,throwFromId:th?.holderId??null,throwToId:th?.receiverId??null,throwProgress:th?clamp((t-th.releaseAt)/th.flight):0,target:th?.base??null,call:this.lastTag?'out':called?(th.out?'out':th.runnerId||th.tagRunnerId?'safe':'no-force'):null,playOuts:this.retired.length,playType:this.retired.length===3?'tripleplay':this.retired.length===2?'doubleplay':null,
+  const options=this.canThrow?Object.keys(BASE_POINTS).filter(b=>b!=='HOME'||this.coverage.HOME).map(base=>{const p=this.predictThrow(base),r=this.runners.find(r=>r.id===this.activeForces[base]),tagRequired=!r&&this.runners.some(r=>r.from>0&&r.to!==r.from&&BASE_ORDER[r.to]===base&&r.arriveAt>t&&!this.retired.some(x=>x.id===r.id));return{base,receiverId:p.receiverId,available:!!p.carry||p.holderId!==p.receiverId,force:Boolean(r),tagRequired,margin:r?r.arriveAt-p.controlAt:null,out:p.out};}):[];
+  return {teamId:this.context.teamId,clock:t,phase,ball,possession,ballOwnerId:owner,fielderId:this.fielder.id,canFieldAction:!!this.manual&&t<this.touchAt&&!this.finished&&(!this.manual.action||t>=this.manual.action.recoverUntil),fieldActionLabel:this.fieldActionKind.toUpperCase(),manualFielding:!!this.manual,activeFielderId:this.manual?.id??null,moveEnabled:!!this.manual&&!this.finished&&t<this.touchAt,fieldingTarget:this.manual?{...this.manual.target}:null,canThrow:this.canThrow,canTag:this.tagOptions.length>0,tagOptions:this.tagOptions,tagPending:Boolean(this.tagAttempt),tagPoint:tagVisible?{...this.lastTag.runnerPoint}:null,callKind:this.lastTag?'tag':null,recommendation:this.recommendation,throwOptions:options,throwFromId:th?.holderId??null,throwToId:th?.receiverId??null,throwProgress:th?clamp((t-th.releaseAt)/th.flight):0,target:th?.base??null,call:this.lastTag?'out':called?(th.out?'out':th.runnerId||th.tagRunnerId?'safe':'no-force'):null,playOuts:this.retired.length,playType:this.retired.length===3?'tripleplay':this.retired.length===2?'doubleplay':null,
    throwStart:th?{...th.start}:null,throwEnd:th?{...th.end}:null,throwReleaseAt:th?.releaseAt??null,throwCatchAt:th?.catchAt??null,throwControlAt:th?.controlAt??null,
    previousThrow:this.throws.length>1?(()=>{const t=this.throws.at(-2);return{base:t.base,receiverId:t.receiverId,holderId:t.holderId,start:{...t.start},end:{...t.end},bag:{...BASE_POINTS[t.base]},forceRunnerId:t.runnerId??null,out:t.out,catchAt:t.catchAt,controlAt:t.controlAt};})():null,
    tagMotion:this.tagAttempt?{holderId:this.tagAttempt.holderId,runnerId:this.tagAttempt.id,base:this.tagAttempt.base,armedAt:this.tagAttempt.armedAt,startedAt:this.tagAttempt.motionStartedAt,readyAt:this.tagAttempt.motionStartedAt+(this.tagAttempt.zone?.windupSeconds??0),contactAt:null,outcome:null,zone:this.tagAttempt.zone?structuredClone(this.tagAttempt.zone):null}:tagVisible?{holderId:this.lastTag.holderId,runnerId:this.lastTag.id,base:this.lastTag.base,armedAt:this.lastTag.motionStartedAt,startedAt:this.lastTag.motionStartedAt,readyAt:this.lastTag.motionStartedAt+(this.lastTag.zone?.windupSeconds??0),contactAt:this.lastTag.at,outcome:'out',zone:this.lastTag.zone?structuredClone(this.lastTag.zone):null}:this.lastTagMiss&&t<Math.max(this.lastTagMiss.at,this.lastTagMiss.readyAt)+.4?{...structuredClone(this.lastTagMiss),contactAt:null,outcome:'safe',missAt:this.lastTagMiss.at}:null,
@@ -179,9 +182,9 @@ export class GroundDefense {
  }
  get resolution(){
   if(!this.finished)return null;
-  const retired=structuredClone(this.retired),outIds=new Set(retired.map(r=>r.id)),third=this.context.outs+retired.length>=3?retired.at(-1):null,cancelRuns=third&&(third.force||third.id===this.context.batterId);
+  const retired=structuredClone(this.retired),outIds=new Set(retired.map(r=>r.id)),third=this.context.outs+retired.length>=3?retired.at(-1):null,cancelRuns=third&&third.force;
   const survivors=this.runners.filter(r=>!outIds.has(r.id)),runs=cancelRuns?[]:survivors.filter(r=>r.to===4&&(!third||r.arriveAt<third.at-1e-8)).map(r=>r.id);
   return {kind:'defensiveplay',context:structuredClone(this.context),retired,destinations:survivors.filter(r=>r.to<4).map(r=>({id:r.id,base:r.to})),runs,
-   recordAs:retired.length?(outIds.has(this.context.batterId)?'groundout':'fielderschoice'):'single',detail:this.throw?`${this.throws.map(t=>t.base).join(' → ')}. ${retired.length===3?'Triple play.':retired.length===2?(retired.some(r=>!r.force)?'Double play · Tag out.':'Double play.'):retired.length===1?(retired[0].force?'Force out.':'Tag out.'):this.throw.runnerId||this.throw.tagRunnerId?'Runner reaches safely.':'No force at that base; a tag would be required.'}`:this.manual&&!Number.isFinite(this.collectAt)?'Ball not secured. Runners reach safely.':'Runners reach safely while the ball is held.'};
+   recordAs:liveHitCredit(this.context,retired),detail:this.throw?`${this.throws.map(t=>t.base).join(' → ')}. ${retired.length===3?'Triple play.':retired.length===2?(retired.some(r=>!r.force)?'Double play · Tag out.':'Double play.'):retired.length===1?(retired[0].force?'Force out.':'Tag out.'):this.throw.runnerId||this.throw.tagRunnerId?'Runner reaches safely.':'No force at that base; a tag would be required.'}`:this.manual&&!Number.isFinite(this.collectAt)?'Ball not secured. Runners reach safely.':'Runners reach safely while the ball is held.'};
  }
 }

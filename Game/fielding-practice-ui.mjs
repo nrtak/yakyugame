@@ -15,7 +15,7 @@ export function createFieldingPracticeUI({renderer,defenseControls,overlay,showM
  }
  function draw(){if(!session?.defense)return;const s=session.defense;renderer.drawDefense({...s,controlRail:true,reducedMotion:reducedMotion(),showCall:false,showReviewNotice:false,throwTargets:true,runnerNames:Object.fromEntries(s.runners.map(r=>[r.id,playerById(r.id).name]))});defenseControls.position(renderer.metrics.defenseCamera);}
  function refresh(){if(!session)return;const p=session,s=p.defense,summary=p.phase==='summary',controls=gameControls(p),feedback=defenseFeedback(s);
-  const key=JSON.stringify([p.phase,p.paused,p.index,s.phase,s.ballOwnerId,s.call,s.canThrow,s.canFieldAction,s.canTag,s.tagPending,s.recommendation,s.playOuts,s.throwOptions.map(o=>[o.base,o.force,o.out,o.tagRequired])]);if(key===signature)return;signature=key;
+  const key=JSON.stringify([p.phase,p.paused,p.index,s.phase,s.ballOwnerId,s.call,s.canThrow,s.canFieldAction,s.canTag,s.tagPending,s.recommendation,s.playOuts,s.throwOptions.map(o=>[o.base,o.force,o.out,o.tagRequired,o.available])]);if(key===signature)return;signature=key;
   $('game').dataset.playMode='field';$('game').classList.toggle('menu-open',p.paused||summary);
   $('hud').hidden=summary;$('coral').textContent=p.team.short;$('coral').style.background=p.team.color;$('half').textContent='DRILL '+(p.index+1)+'/'+FIELDING_DRILLS.length;$('navy').textContent='OUTS '+(p.summary.outs+(p.phase==='field'?(s.playOuts??0):0));$('navy').style.background='#254e6b';$('count').textContent=p.drill.title;
   $('pause').hidden=summary;$('pause').disabled=summary;$('phase-label').hidden=summary;$('phase-label').textContent='FIELDING PRACTICE';$('replay-tips').hidden=true;

@@ -86,3 +86,12 @@ test('1, 3, 7 and 9 innings preserve roles, lineups and home-field identity for 
   assert.ok(g.match.lineScore.every(line=>line.length===innings&&line.every(n=>n===0)));g.reset();assert.equal(g.match.teamIds[1],homeTeamId);assert.equal(g.match.innings,innings);
  }
 });
+test('the pitcher commits the aim at release while the batter can still track a pitch',()=>{
+ const defense=new DeviceGame({teamId:'navy-stars'});defense.start();defense.setAim(.4,-.3);
+ const committed={...defense.aim};assert.equal(defense.releasePitch(),true);
+ defense.setAim(-1,1);assert.deepEqual(defense.aim,committed);
+ while(defense.phase==='windup')defense.step(.02);
+ defense.setAim(-1,1);assert.deepEqual(defense.sceneState().aim,committed);
+ const offense=new DeviceGame({teamId:'coral-club'});offense.start();
+ offense.setAim(-1,1);assert.deepEqual(offense.aim,{x:-1,y:1});
+});

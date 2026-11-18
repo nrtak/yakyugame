@@ -2,7 +2,14 @@ import { seededRandom,PITCH_WINDUP_SECONDS } from './engine.mjs';
 import { TEAMS, allPlayers, playerById } from './rosters.mjs';
 import {PITCH_TYPES,PITCH_FLIGHT_SECONDS,pitcherRepertoire,pitchMovement} from './pitch-types.mjs';
 import {cpuDifficulty} from './cpu-difficulty.mjs';
-import {tagContactValid} from './defense-tags.mjs';
+import {tagContactValid,liveHitCredit} from './defense-tags.mjs';
+
+// Fresh exhibitions vary, while explicit story/drill seeds and saved matches
+// keep their original deterministic sequence.
+export function newMatchSeed(source=globalThis.crypto){
+ if(!source?.getRandomValues)throw Error('Match randomness is unavailable');
+ return source.getRandomValues(new Uint32Array(1))[0]||1;
+}
 
 export function createMatch({innings=3,seed=211,homeTeamId='navy-stars'}={}) {
   if(!Number.isInteger(innings)||innings<1||innings>9)throw Error('Choose 1–9 regulation innings');
@@ -73,6 +80,19 @@ function applyDefense(m,outcome,event,batter,stats){
   for(const [id,q] of Object.entries(c.runnerStarts??{}))if(!m.bases.includes(id)||!Number.isFinite(q)||q<0||q>=1)throw Error('Invalid runner lead context');
   const forces={'1B':batter.id};let chain=true;
   for(let i=0;i<3;i++){chain=chain&&Boolean(m.bases[i]);if(chain)forces[['2B','3B','HOME'][i]]=m.bases[i];}
+  const paths=new Map();
+  for(const [id,legs] of Object.entries(c.extraLegs??{})){
+   const origin=id===batter.id?0:m.bases.indexOf(id)+1;
+   if(!origin&&id!==batter.id||!Array.isArray(legs)||!legs.length)throw Error('Invalid extra-base runner');
+   const moving=id===batter.id||forces[['1B','2B','3B','HOME'][origin]]===id||c.runnerAdvances?.[id]===origin+1;
+   let base=origin+Number(moving),arrival=moving?(id===batter.id?c.runnerTime:c.runnerTimes?.[id]??Math.max(.4,c.runnerTime-.55)):0;
+   const duration=c.runnerTime*(75/playerById(id).speed)**.35*.92;
+   for(const leg of legs){
+    if(leg.from!==base||leg.to!==base+1||leg.to>(id===batter.id?3:4)||!Number.isFinite(leg.startAt)||!Number.isFinite(leg.arriveAt)||leg.startAt<arrival-1e-8||arrival&&Math.abs(leg.startAt-arrival)>1e-7||Math.abs(leg.arriveAt-leg.startAt-duration)>1e-7)throw Error('Invalid extra-base path');
+    base=leg.to;arrival=leg.arriveAt;
+   }
+   paths.set(id,legs);
+  }
   const retired=outcome.retired;
   if(!Array.isArray(retired)||retired.length>3-m.outs)throw Error('Too many defensive outs');
   const checked=new Set(),hasTags=retired.some(r=>r.force===false);let previousAt=-1;
@@ -81,9 +101,11 @@ function applyDefense(m,outcome,event,batter,stats){
     const from=m.bases.indexOf(r.id),behind=r.id===batter.id?[]:[batter.id,...m.bases.slice(0,from).filter(Boolean)];
     if(r.force===true){if(forces[r.base]!==r.id||checked.has(r.id)||behind.some(id=>checked.has(id)))throw Error('Invalid or removed force');}
     else if(r.force===false){
-     const to=['1B','2B','3B','HOME'].indexOf(r.base)+1,arriveAt=c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55),d=90/Math.sqrt(2),points=[{x:0,y:0},{x:d,y:d},{x:0,y:2*d},{x:-d,y:d},{x:0,y:0}],q=(c.runnerStarts?.[r.id]??0)+(1-(c.runnerStarts?.[r.id]??0))*r.at/arriveAt;
-     if(from<0||checked.has(r.id)||to!==from+2||!(c.runnerAdvances?.[r.id]===to||forces[r.base]===r.id&&behind.some(id=>checked.has(id))))throw Error('Invalid tag runner or active force');
-     const start=points[from+1],end=points[to],expected={x:start.x+(end.x-start.x)*q,y:start.y+(end.y-start.y)*q},tag=r.tag;
+     const to=['1B','2B','3B','HOME'].indexOf(r.base)+1,leg=paths.get(r.id)?.at(-1),arriveAt=leg?.arriveAt??c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55),d=90/Math.sqrt(2),points=[{x:0,y:0},{x:d,y:d},{x:0,y:2*d},{x:-d,y:d},{x:0,y:0}];
+     const startAt=leg?.startAt??0,lead=leg?0:c.runnerStarts?.[r.id]??0,q=lead+(1-lead)*(r.at-startAt)/(arriveAt-startAt);
+     const validLeg=leg?leg.to===to&&r.at>=startAt:from>=0&&to===from+2&&(c.runnerAdvances?.[r.id]===to||forces[r.base]===r.id&&behind.some(id=>checked.has(id)));
+     if(checked.has(r.id)||!validLeg)throw Error('Invalid tag runner or active force');
+     const start=points[leg?.from??from+1],end=points[to],expected={x:start.x+(end.x-start.x)*q,y:start.y+(end.y-start.y)*q},tag=r.tag;
      if(!tag||!Number.isFinite(tag.controlAt)||tag.controlAt>r.at||!TEAMS[fieldingTeam(m)].players.some(p=>p.id===tag.holderId)||!tagContactValid({at:r.at,arriveAt,holderPoint:tag.holderPoint,runnerPoint:tag.runnerPoint,startPoint:start})||Math.hypot(tag.runnerPoint.x-expected.x,tag.runnerPoint.y-expected.y)>1e-6)throw Error('Tag lacks controlled runner contact');
      const zone=c.tagZoneById?.[tag.holderId];
      if(zone?.base===r.base){
@@ -92,18 +114,22 @@ function applyDefense(m,outcome,event,batter,stats){
     }else throw Error('Invalid or removed force');
     if(hasTags&&(!Number.isFinite(r.at)||r.at<previousAt))throw Error('Invalid retirement clock');previousAt=r.at;checked.add(r.id);
   }
-  const retiredIds=new Set(retired.map(r=>r.id)),third=m.outs+retired.length===3?retired.at(-1):null,cancelRuns=third&&(third.force||third.id===batter.id);
+  const retiredIds=new Set(retired.map(r=>r.id)),third=m.outs+retired.length===3?retired.at(-1):null,cancelRuns=third&&third.force;
   const movements=[{id:batter.id,base:1},...m.bases.map((id,i)=>id?{id,base:forces[['2B','3B','HOME'][i]]===id||c.runnerAdvances?.[id]===i+2?i+2:i+1}:null).filter(Boolean)].filter(r=>!retiredIds.has(r.id));
-  const destinations=movements.filter(r=>r.base<4),runs=cancelRuns?[]:movements.filter(r=>r.base===4&&(!third||(c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55))<third.at-1e-8)).map(r=>r.id);
+  for(const runner of movements)runner.base=paths.get(runner.id)?.at(-1).to??runner.base;
+  const destinations=movements.filter(r=>r.base<4),runs=cancelRuns?[]:movements.filter(r=>r.base===4&&(!third||(paths.get(r.id)?.at(-1).arriveAt??c.runnerTimes?.[r.id]??Math.max(.4,c.runnerTime-.55))<third.at-1e-8)).map(r=>r.id);
+  if(new Set(destinations.map(r=>r.base)).size!==destinations.length)throw Error('Runners cannot share a base');
   const same=(a,b)=>JSON.stringify(a.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))))===JSON.stringify(b.slice().sort((x,y)=>JSON.stringify(x).localeCompare(JSON.stringify(y))));
   if(!Array.isArray(outcome.destinations)||!Array.isArray(outcome.runs)||!same(outcome.destinations,destinations)||!same(outcome.runs,runs))throw Error('Invalid defensive runner destinations');
-  const kind=retired.length?(retiredIds.has(batter.id)?'groundout':'fielderschoice'):'single';
+  const kind=liveHitCredit(c,retired);
   if(outcome.recordAs!==kind)throw Error('Defensive scoring does not match the play');
   m.bases=[null,null,null];for(const r of destinations)m.bases[r.base-1]=r.id;
-  m.outs+=retired.length;stats.ab++;if(kind==='single'){stats.h++;m.hits[m.half]++;}
+  m.outs+=retired.length;stats.ab++;if(['single','double','triple'].includes(kind)){stats.h++;m.hits[m.half]++;}
   event.kind=kind;event.atBatEnded=true;event.retired=structuredClone(retired);event.tagOuts=retired.filter(r=>!r.force).length;
   for(const id of runs)addRun(m,id,event);
   event.title=kind==='groundout'?`${batter.name} grounds out`:kind==='fielderschoice'?`${batter.name} reaches on a fielder's choice`:`${batter.name} reaches safely`;
+  if(kind==='double'||kind==='triple')event.title=`${batter.name} hits a ${kind}`;
+  if(retiredIds.has(batter.id)&&paths.has(batter.id))event.title=`${batter.name} hits a ${kind} and is tagged stretching it`;
   if(retired.length>=2){event.playType=retired.length===3?'tripleplay':'doubleplay';event.title=retired.length===3?'Triple play!':`${batter.name} hits into a double play`;}
 }
 

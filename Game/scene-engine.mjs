@@ -22,5 +22,8 @@ export class BattingScene {
   }
  }
 }
-export function swingFrame(s){if(s.swingAt===null)return 0;const t=s.elapsed-s.swingAt+(['hit','result'].includes(s.phase)?s.clock:0)+1e-8;return t<.045?0:t<SWING_LEAD?1:t<.24?2:t<.64?3:0;}
+// The accepted sheets contain ready, impact and follow-through drawings, but
+// no loading drawing. Keep impact aligned with the judged contact time rather
+// than showing the same impact drawing as a load 95ms before the ball arrives.
+export function swingFrame(s){if(s.swingAt===null||s.swingAt===undefined)return 0;const t=s.elapsed-s.swingAt+(['hit','result'].includes(s.phase)?s.clock:0)+1e-8;return t<SWING_LEAD?0:t<.24?2:t<.64?3:0;}
 export function pitcherFrame(s){const t=s.clock*.72/PITCH_WINDUP_SECONDS;if(s.phase==='windup')return t<.16?0:t<.49?1:2;if(s.phase==='flight')return s.elapsed<.3?3:4;if(['hit','result'].includes(s.phase))return 4;return 0;}
